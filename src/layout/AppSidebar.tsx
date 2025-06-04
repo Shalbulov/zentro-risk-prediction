@@ -26,11 +26,12 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  {
-    icon: <GridIcon />,
-    name: "Dashboard",
-    subItems: [{ name: "Ecommerce", path: "/", pro: false }],
-  },
+{
+  icon: <GridIcon />,
+  name: "Dashboard",
+  path: "/", // прямая ссылка
+},
+
   {
     icon: <CalenderIcon />,
     name: "Calendar",
@@ -42,13 +43,9 @@ const navItems: NavItem[] = [
     path: "/profile",
   },
   {
-    name: "Forms",
-    icon: <ListIcon />,
-    subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
-  },
-  {
-    name: "Tables",
     icon: <TableIcon />,
+    path: "/calendar",
+    name: "Tables",
     subItems: [{ name: "Basic Tables", path: "/basic-tables", pro: false }],
   },
   {
@@ -68,18 +65,6 @@ const othersItems: NavItem[] = [
     subItems: [
       { name: "Line Chart", path: "/line-chart", pro: false },
       { name: "Bar Chart", path: "/bar-chart", pro: false },
-    ],
-  },
-  {
-    icon: <BoxCubeIcon />,
-    name: "UI Elements",
-    subItems: [
-      { name: "Alerts", path: "/alerts", pro: false },
-      { name: "Avatar", path: "/avatars", pro: false },
-      { name: "Badge", path: "/badge", pro: false },
-      { name: "Buttons", path: "/buttons", pro: false },
-      { name: "Images", path: "/images", pro: false },
-      { name: "Videos", path: "/videos", pro: false },
     ],
   },
   {
@@ -298,35 +283,37 @@ const AppSidebar: React.FC = () => {
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-<div className="py-8 flex justify-center">
-        <Link to="/">
-          {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <img
-                className="dark:hidden"
-                src="/images/logo/logo.png"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-              <img
-                className="hidden dark:block"
-                src="/images/logo/logo-dark.png"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-            </>
-          ) : (
-            <img
-              src="/images/logo/logo-icon.svg"
-              alt="Logo"
-              width={32}
-              height={32}
-            />
-          )}
-        </Link>
-      </div>
+<div className="py-8 flex justify-start"> 
+  <Link to="/" className="flex items-center">
+{/* <div className="py-8 flex justify-center">
+  <Link to="/"> */}
+    {isExpanded || isHovered || isMobileOpen ? (
+      <>
+        <img
+          className="dark:hidden"
+          src="/images/logo/logo.png"
+          alt="Logo"
+          width={187.5}
+          height={50}  
+        />
+        <img
+          className="hidden dark:block"
+          src="/images/logo/logo-dark.png"
+          alt="Logo"
+          width={187.5} 
+          height={50} 
+        />
+      </>
+    ) : (
+      <img
+        src="/images/logo/logo-icon.svg"
+        alt="Logo"
+        width={40}     
+        height={40}   
+      />
+    )}
+  </Link>
+</div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
           <div className="flex flex-col gap-4">

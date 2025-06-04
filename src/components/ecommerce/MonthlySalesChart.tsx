@@ -3,17 +3,49 @@ import { ApexOptions } from "apexcharts";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { MoreDotIcon } from "../../icons";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 
 export default function MonthlySalesChart() {
+  const [series, setSeries] = useState([]);
+  const [categories, setCategories] = useState([]);
+
+useEffect(() => {
+  fetch("/api/sales")
+    .then((res) => res.json())
+    .then((data) => {
+      setSeries(data.series);
+      setCategories(data.categories);
+    })
+    .catch((error) => console.error("Ошибка загрузки данных:", error));
+}, []);
+
+
   const options: ApexOptions = {
-    colors: ["#629731", "#80aa59"], // Using primary green and secondary green
     chart: {
-      fontFamily: "Outfit, sans-serif",
       type: "bar",
-      height: 180,
-      toolbar: {
-        show: false,
+      height: 240,
+      toolbar: { show: false },
+      fontFamily: "Outfit, sans-serif",
+    },
+    colors: ["#629731", "#80aa59"],
+    xaxis: {
+      categories: categories,
+      labels: {
+        style: {
+          colors: "#51565e",
+          fontFamily: "Outfit, sans-serif",
+        },
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
+      labels: {
+        style: {
+          colors: "#51565e",
+          fontFamily: "Outfit, sans-serif",
+        },
       },
     },
     plotOptions: {
@@ -24,103 +56,65 @@ export default function MonthlySalesChart() {
         borderRadiusApplication: "end",
       },
     },
-    dataLabels: {
-      enabled: false,
-    },
-    stroke: {
-      show: true,
-      width: 4,
-      colors: ["transparent"],
-    },
-    xaxis: {
-      categories: [
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Oct",
-        "Nov",
-        "Dec",
-      ],
-      axisBorder: {
-        show: false,
-      },
-      axisTicks: {
-        show: false,
-      },
-      labels: {
-        style: {
-          colors: "#51565e", // Using primary gray for axis labels
-          fontFamily: "Outfit, sans-serif",
-        }
-      }
-    },
+    dataLabels: { enabled: false },
+stroke: {
+  show: true,
+  width: 1,
+  colors: ["transparent"],
+},
+
     legend: {
-      show: true,
       position: "top",
       horizontalAlign: "left",
       fontFamily: "Outfit",
       labels: {
-        colors: "#51565e", // Using primary gray for legend
-      }
-    },
-    yaxis: {
-      title: {
-        text: undefined,
+        colors: "#51565e",
       },
-      labels: {
-        style: {
-          colors: "#51565e", // Using primary gray for y-axis labels
-          fontFamily: "Outfit, sans-serif",
-        }
-      }
     },
     grid: {
+      borderColor: "#b9bec5",
       yaxis: {
-        lines: {
-          show: true,
-        },
+        lines: { show: true },
       },
-      borderColor: "#b9bec5", // Using light gray for grid lines
     },
-    fill: {
-      opacity: 1,
-    },
-    tooltip: {
-      theme: "light", // or "dark" depending on your preference
-      x: {
-        show: false,
-      },
-      y: {
-        formatter: (val: number) => `${val}`,
-      },
-      style: {
-        fontFamily: "Outfit, sans-serif",
-      }
-    },
+    fill: { opacity: 1 },
+tooltip: {
+  theme: "light",
+  x: { show: false },
+  custom: function({ series, seriesIndex, dataPointIndex, w }) {
+    const value = series[seriesIndex][dataPointIndex];
+    const seriesName = w.globals.seriesNames[seriesIndex];
+    const color = w.config.colors?.[seriesIndex] || "#000";
+
+    return `
+      <div style="
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        font-family: Outfit, sans-serif;
+        font-size: 14px;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      ">
+        <div style="
+          width: 10px;
+          height: 10px;
+          border-radius: 9999px;
+          background: ${color};
+          margin-right: 8px;
+        "></div>
+        <div style="color: #333;">${seriesName}: ${value}</div>
+      </div>
+    `;
+  },
+}
+
   };
 
-  const series = [
-    {
-      name: "Sales",
-      data: [168, 385, 201, 298, 187, 195, 291, 110, 215, 390, 280, 112],
-    },
-  ];
-
   const [isOpen, setIsOpen] = useState(false);
-
-  function toggleDropdown() {
-    setIsOpen(!isOpen);
-  }
-
-  function closeDropdown() {
-    setIsOpen(false);
-  }
+  const toggleDropdown = () => setIsOpen(!isOpen);
+  const closeDropdown = () => setIsOpen(false);
 
   return (
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
@@ -132,23 +126,9 @@ export default function MonthlySalesChart() {
           <button className="dropdown-toggle" onClick={toggleDropdown}>
             <MoreDotIcon className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 size-6" />
           </button>
-          <Dropdown
-            isOpen={isOpen}
-            onClose={closeDropdown}
-            className="w-40 p-2"
-          >
-            <DropdownItem
-              onItemClick={closeDropdown}
-              className="flex w-full font-normal text-left text-gray-500 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
-            >
-              View More
-            </DropdownItem>
-            <DropdownItem
-              onItemClick={closeDropdown}
-              className="flex w-full font-normal text-left text-gray-500 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
-            >
-              Delete
-            </DropdownItem>
+          <Dropdown isOpen={isOpen} onClose={closeDropdown} className="w-40 p-2">
+            <DropdownItem onItemClick={closeDropdown}>View More</DropdownItem>
+            <DropdownItem onItemClick={closeDropdown}>Delete</DropdownItem>
           </Dropdown>
         </div>
       </div>
