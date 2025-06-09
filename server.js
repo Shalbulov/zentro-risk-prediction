@@ -3,11 +3,30 @@ import express from "express";
 import cors from "cors";
 import fs from "fs";
 import path from "path";
+import pool from "./db.js";
+import authRoutes from "./routes/auth.js";
+
 
 const app = express();
 const PORT = 4000;
 
 app.use(cors());
+
+app.use(express.json()); // ✅ если планируешь использовать body JSON в будущем
+
+// ✅ Тест подключения к базе (ставим после app и до других маршрутов)
+app.get("/api/test-db", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    res.json({ time: result.rows[0] });
+  } catch (err) {
+    console.error("❌ DB connection failed:", err);
+    res.status(500).json({ error: "Database connection error" });
+  }
+});
+
+app.use("/api/auth", authRoutes);
+
 
 /**
  * 1) Храним «месячные» данные за 2023 и 2024 годы
