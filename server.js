@@ -29,23 +29,29 @@ app.use("/api/auth", authRoutes);
 
 
 /**
- * 1) Храним «месячные» данные за 2023 и 2024 годы
- *    для трех метрик: turnover, checks, profit.
+ * 1) Месячные данные за 2023, 2024 и 2025 годы для трёх метрик:
  */
 const yearData = {
   "2023": {
-    turnover: [60,  70,  80,  75,  85,  80,  90,  95, 100, 105, 110, 115],
-    checks:   [45,  50,  55,  52,  60,  58,  65,  68,  70,  72,  75,  78],
-    profit:   [20,  22,  25,  23,  27,  26,  30,  32,  35,  36,  38,  40],
+    turnover: [60, 70, 80, 75, 85, 80, 90, 95, 100, 105, 110, 115],
+    checks:   [45, 50, 55, 52, 60, 58, 65, 68, 70, 72, 75, 78],
+    profit:   [20, 22, 25, 23, 27, 26, 30, 32, 35, 36, 38, 40],
   },
   "2024": {
-    turnover: [65,  75,  85,  80,  90,  85,  95, 32, 13, 64, 55, 32],
-    checks:   [48,  55,  60,  57,  62,  60,  70,  75,  78,  80,  82,  85],
-    profit:   [22,  25,  28,  26,  30,  29,  32,  35,  38,  40,  42,  45],
+    turnover: [65, 75, 85, 80, 90, 85, 95, 32, 13, 64, 55, 32],
+    checks:   [48, 55, 60, 57, 62, 60, 70, 75, 78, 80, 82, 85],
+    profit:   [22, 25, 28, 26, 30, 29, 32, 35, 38, 40, 42, 45],
+  },
+  "2025": {  // искусственные данные на 2025 год
+    turnover: [70, 82, 94, 89, 98, 95, 105, 110, 115, 120, 125, 130],
+    checks:   [50, 60, 65, 63, 70, 68, 75, 78, 80, 85, 87, 90],
+    profit:   [25, 28, 30, 29, 33, 31, 35, 37, 40, 42, 45, 48],
   },
 };
 
-// 2) Пример данных для /api/sales (оставляем без изменений)
+/**
+ * 2) /api/sales — демонстрация простого графика
+ */
 let salesData = {
   categories: [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -58,12 +64,13 @@ let salesData = {
     },
   ],
 };
-
 app.get("/api/sales", (req, res) => {
   res.json(salesData);
 });
 
-// 3) Маршрут для чтения metrics.json (оставляем без изменений)
+/**
+ * 3) /api/ecommerce/metrics — чтение из metrics.json
+ */
 app.get("/api/ecommerce/metrics", (req, res) => {
   try {
     const filePath = path.join(process.cwd(), "metrics.json");
@@ -77,15 +84,15 @@ app.get("/api/ecommerce/metrics", (req, res) => {
 });
 
 /**
- * 4) Новый маршрут:
- *    GET /api/statistics?metric=<turnover|checks|profit>&period=<month|annual>
+ * 4) /api/statistics?metric=<turnover|checks|profit>&period=<month|annual>
  */
 app.get("/api/statistics", (req, res) => {
   const metric = req.query.metric;
-  const period = req.query.period || "month";
+  const periodParam = req.query.period;
+  const period = typeof periodParam === "string" ? periodParam : "month";
 
   if (typeof metric !== "string") {
-    return res.status(400).json({ error: "Query parameter `metric` обязателен" });
+    return res.status(400).json({ error: "`metric` обязателен" });
   }
   if (!["turnover", "checks", "profit"].includes(metric)) {
     return res.status(400).json({ error: `Unknown metric: ${metric}` });
@@ -94,13 +101,11 @@ app.get("/api/statistics", (req, res) => {
     return res.status(400).json({ error: `Unknown period: ${period}` });
   }
 
-  // Общие месячные категории
   const categories = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ];
 
-  // 4.1) Если запрошен «month» — отдаём 12 значений за 2024 год
   if (period === "month") {
     const data2024 = yearData["2024"][metric];
     return res.json({
@@ -119,32 +124,92 @@ app.get("/api/statistics", (req, res) => {
     });
   }
 
-  // 4.2) Если запрошен «annual» — считаем суммы за 2023 и за 2024
-  if (period === "annual") {
-    const data2023 = yearData["2023"][metric];
-    const data2024 = yearData["2024"][metric];
+  const data2023 = yearData["2023"][metric];
+  const data2024 = yearData["2024"][metric];
+  const sum2023 = data2023.reduce((a, v) => a + v, 0);
+  const sum2024 = data2024.reduce((a, v) => a + v, 0);
 
-    const sum2023 = data2023.reduce((acc, v) => acc + v, 0);
-    const sum2024 = data2024.reduce((acc, v) => acc + v, 0);
+  return res.json({
+    categories: ["2023", "2024"],
+    series: [
+      {
+        name:
+          metric === "turnover"
+            ? "Оборот"
+            : metric === "checks"
+            ? "Чеки"
+            : "Прибыль",
+        data: [sum2023, sum2024],
+      },
+    ],
+  });
+});
 
-    return res.json({
-      categories: ["2023", "2024"],
-      series: [
-        {
-          name:
-            metric === "turnover"
-              ? "Оборот (turnover)"
-              : metric === "checks"
-              ? "Чеки (checks)"
-              : "Прибыль (profit)",
-          data: [sum2023, sum2024],
-        },
-      ],
-    });
+/**
+ * 5) /api/sales/statistics?start=dd-MM-yyyy&end=dd-MM-yyyy
+ *    Единый эндпоинт, возвращающий все KPI одновременно
+ */
+app.get("/api/sales/statistics", (req, res) => {
+  const { start, end } = req.query;
+  if (typeof start !== "string" || typeof end !== "string") {
+    return res
+      .status(400)
+      .json({ error: "`start` и `end` обязательны в формате dd-MM-yyyy" });
   }
 
-  // На всякий случай – если ни один случай не подошёл
-  return res.status(400).json({ error: "Неправильный запрос" });
+  const [d1, m1, y1] = start.split("-").map(Number);
+  const [d2, m2, y2] = end.split("-").map(Number);
+  const startDate = new Date(y1, m1 - 1, d1);
+  const endDate = new Date(y2, m2 - 1, d2);
+  if (isNaN(startDate) || isNaN(endDate) || startDate > endDate) {
+    return res
+      .status(400)
+      .json({ error: "Неправильный диапазон дат" });
+  }
+
+  const yearKey = String(endDate.getFullYear());
+  const monthIdx = endDate.getMonth(); // 0–11
+
+  const turnoverArr = yearData[yearKey]?.turnover;
+  const checksArr   = yearData[yearKey]?.checks;
+  const profitArr   = yearData[yearKey]?.profit;
+
+  if (!turnoverArr || !checksArr || !profitArr) {
+    return res
+      .status(404)
+      .json({ error: `Нет данных за ${yearKey}` });
+  }
+
+  const revenue      = turnoverArr[monthIdx];
+  const receiptCount = checksArr[monthIdx];
+  const profit       = profitArr[monthIdx];
+  const salesCount   = receiptCount; // MVP: продажи = количество чеков
+  const averageTicket =
+    salesCount > 0 ? revenue / salesCount : 0;
+
+  const prevIdx      = monthIdx > 0 ? monthIdx - 1 : 0;
+  const prevRev      = turnoverArr[prevIdx];
+  const prevChk      = checksArr[prevIdx];
+  const prevPrf      = profitArr[prevIdx];
+  const prevSales    = prevChk;
+  const prevAvgCheck = prevSales > 0 ? prevRev / prevSales : 0;
+
+  const calcDelta = (cur, prev) =>
+    prev === 0 ? 0 : ((cur - prev) / prev) * 100;
+
+  res.json({
+    revenue,
+    revenueChangePercent:      calcDelta(revenue, prevRev),
+    salesCount,
+    salesCountChangePercent:   calcDelta(salesCount, prevSales),
+    receiptCount,
+    receiptCountChangePercent: calcDelta(receiptCount, prevChk),
+    averageTicket,
+    averageTicketChangePercent: calcDelta(averageTicket, prevAvgCheck),
+    profit,
+    profitChangePercent:       calcDelta(profit, prevPrf),
+    storesCount:               325, // stub-значение
+  });
 });
 
 app.listen(PORT, () => {

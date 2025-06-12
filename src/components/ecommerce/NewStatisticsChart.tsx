@@ -1,317 +1,207 @@
 // NewStatisticsChart.tsx
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Chart from "react-apexcharts";
 import { ApexOptions } from "apexcharts";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import { MoreDotIcon } from "../../icons";
-import { useState, useEffect } from "react";
+import classNames from "classnames";
 
-// Типы для метрик
 type MetricType = "turnover" | "checks" | "profit";
+type SegmentType = "all" | "leaders" | "outsiders";
 
-// Интерфейс ответа API
 interface ApiPayload {
   series: { name: string; data: number[] }[];
-  categories: string[];
+  categories: string[]; // full store names
 }
 
+interface MetricConfig {
+  id: MetricType;
+  label: string;
+  color: string;
+  unit: string;
+}
+
+const METRICS_CONFIG: MetricConfig[] = [
+  { id: "turnover", label: "Изменение оборота",    color: "#629731", unit: "%" },
+  { id: "checks",   label: "Изменение кол-ва чеков", color: "#4C8BF5", unit: "%" },
+  { id: "profit",   label: "Изменение прибыли",     color: "#FF6B6B", unit: "%" },
+];
+
 export default function NewStatisticsChart() {
-  // 1. Стейт для выбранной метрики
   const [selectedMetric, setSelectedMetric] = useState<MetricType>("turnover");
+  const [segment, setSegment] = useState<SegmentType>("all");
+  const [data, setData] = useState<ApiPayload>({ series: [], categories: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // 2. Стейт для данных (серии и категории)
-  const [series, setSeries] = useState<{ name: string; data: number[] }[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  const currentMetric = useMemo(
+    () => METRICS_CONFIG.find(m => m.id === selectedMetric)!,
+    [selectedMetric]
+  );
 
-  // 3. Стейт для Dropdown-меню (верхний правый угол)
-  const [isOpen, setIsOpen] = useState(false);
-  const toggleDropdown = () => setIsOpen((prev) => !prev);
-  const closeDropdown = () => setIsOpen(false);
-
-  // 4. Функция для получения данных с сервера
-  // Предполагаем, что сервер отдаёт данные по маршруту `/api/statistics?metric=...`
-  const fetchMetricData = async (metric: MetricType) => {
+  // Fetch API
+  const fetchData = useCallback(async (metric: MetricType) => {
+    setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`/api/statistics?metric=${metric}`);
-      if (!response.ok) {
-        throw new Error(`Ошибка при получении данных: ${response.status}`);
-      }
-      const payload: ApiPayload = await response.json();
-      setSeries(payload.series);
-      setCategories(payload.categories);
-    } catch (err) {
-      console.error(err);
-      // В случае ошибки можно подставить «mock» данные или оставить пустыми
-      setSeries([]);
-      setCategories([]);
+      const res = await fetch(`/api/statistics?metric=${metric}`);
+      if (!res.ok) throw new Error(res.statusText);
+      const payload: ApiPayload = await res.json();
+      setData(payload);
+    } catch {
+      setError("Не удалось загрузить данные.");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, []);
 
-  // 5. При монтировании и при изменении метрики — запрашиваем данные
-  useEffect(() => {
-    fetchMetricData(selectedMetric);
-  }, [selectedMetric]);
+  useEffect(() => { fetchData(selectedMetric); }, [selectedMetric, fetchData]);
 
-  // 6. Настройки ApexCharts
-  const options: ApexOptions = {
-    chart: {
-      type: "bar",
-      height: 280,
-      toolbar: { show: false },
-      fontFamily: "Outfit, sans-serif",
-      stacked: false,
-    },
-    colors: ["#629731", "#FF6B6B"],
+  // Prepare categories + sorting + segmentation
+  const processed = useMemo(() => {
+    const values = data.series[0]?.data || [];
+    const paired = data.categories.map((full, i) => ({
+      full,
+      short: full.length > 10 ? full.slice(0, 10) + "…" : full,
+      value: values[i] ?? 0,
+    }));
+    // sort descending for ranking
+    const desc = [...paired].sort((a, b) => b.value - a.value);
+    let list = segment === "leaders"
+      ? desc.slice(0, 5)
+      : segment === "outsiders"
+        ? [...desc].reverse().slice(0, 5)
+        : desc;
+    return {
+      series: [{ name: currentMetric.label, data: list.map(p => p.value) }],
+      catsShort: list.map(p => p.short),
+      catsFull: list.map(p => p.full),
+    };
+  }, [data, segment, currentMetric.label]);
+
+  // Chart options
+  const chartOptions: ApexOptions = useMemo(() => ({
+    chart: { type: "bar", animations: { enabled: true, speed: 500 }, fontFamily: "Outfit, sans-serif" },
+    colors: [currentMetric.color],
     xaxis: {
-      categories: categories,
-      labels: {
-        style: {
-          colors: "#51565e",
-          fontFamily: "Outfit, sans-serif",
-          fontSize: "12px",
-        },
-      },
+      categories: processed.catsShort,
+      labels: { style: { colors: "#51565e", fontSize: "12px" } },
+    },
+    yaxis: {
+      min: Math.min(0, ...processed.series[0].data),
+      max: Math.max(0, ...processed.series[0].data),
+      labels: { formatter: v => `${v}${currentMetric.unit}`, style: { colors: "#51565e" } },
       axisBorder: { show: false },
       axisTicks: { show: false },
     },
-    yaxis: {
-      min: 0,
-      // Допустим, что все три метрики измеряются в процентах и укладываются в 100%
-      max: 100,
-      tickAmount: 5,
-      labels: {
-        style: {
-          colors: "#51565e",
-          fontFamily: "Outfit, sans-serif",
-        },
-        formatter: (val: number) => `${val}%`,
-      },
+    annotations: {
+      yaxis: [{ y: 0, borderColor: "#cbd5e1", strokeDashArray: 4 }],
     },
-    plotOptions: {
-      bar: {
-        horizontal: false,
-        columnWidth: "60%",
-        borderRadius: 4,
-        borderRadiusApplication: "end",
-        dataLabels: {
-          position: "top",
-        },
-      },
-    },
+    plotOptions: { bar: { columnWidth: "50%", borderRadius: 4 } },
     dataLabels: {
       enabled: true,
-      formatter: (val: number) => `${val}%`,
-      offsetY: -16,
-      style: {
-        fontSize: "10px",
-        colors: ["#51565e"],
-        fontFamily: "Outfit, sans-serif",
-      },
+      formatter: v => `${v}${currentMetric.unit}`,
+      offsetY: -6,
+      style: { fontSize: "10px", colors: ["#51565e"] },
     },
-    stroke: {
-      show: true,
-      width: 1,
-      colors: ["transparent"],
-    },
-    legend: {
-      position: "top",
-      horizontalAlign: "right",
-      fontFamily: "Outfit, sans-serif",
-      labels: {
-        colors: "#51565e",
-        useSeriesColors: false,
+    tooltip: {
+      theme: "light",
+      x: {
+        formatter: (_val, { dataPointIndex }) => processed.catsFull[dataPointIndex],
       },
-      markers: {
-        width: 12,
-        height: 12,
-        radius: 6,
-      },
+      y: { formatter: v => `${v}${currentMetric.unit}` },
     },
     grid: {
       borderColor: "#e5e7eb",
-      strokeDashArray: 4,
-      yaxis: {
-        lines: { show: true },
-      },
-      xaxis: {
-        lines: { show: false },
-      },
+      yaxis: { lines: { show: true } },
+      xaxis: { lines: { show: false } },
     },
-    fill: {
-      opacity: 1,
-      type: "solid",
+    noData: {
+      text: loading ? "Загрузка..." : error || "Нет данных",
+      style: { color: "#51565e", fontFamily: "Outfit, sans-serif" },
     },
-    tooltip: {
-      shared: true,
-      intersect: false,
-      theme: "light",
-      x: {
-        show: true,
-        formatter: (val) => val,
-      },
-      y: {
-        formatter: (val: number) => `${val}%`,
-      },
-      style: {
-        fontFamily: "Outfit, sans-serif",
-        fontSize: "12px",
-        cssClass: "apexcharts-custom-tooltip",
-      },
-      marker: {
-        show: true,
-      },
-      custom: ({ series, dataPointIndex, w }) => {
-        const label = w.globals.categoryLabels[dataPointIndex] || "";
-        const activeSeries = w.globals.seriesNames
-          .map((name, i) => {
-            const value = series[i]?.[dataPointIndex];
-            // Если нет данных у серии или она скрыта — пропускаем
-            const isVisible = w.globals.collapsedSeriesIndices.indexOf(i) === -1;
-            if (value === undefined || !isVisible) return null;
-            return `
-              <div style="
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                margin-bottom: 4px;
-              ">
-                <div style="
-                  width: 10px;
-                  height: 10px;
-                  border-radius: 50%;
-                  background: ${w.globals.colors[i]};
-                  flex-shrink: 0;
-                "></div>
-                <div style="font-weight: 500;">
-                  ${name}: <span style="font-weight: 600">${value}%</span>
-                </div>
-              </div>
-            `;
-          })
-          .filter(Boolean)
-          .join("");
-
-        return `
-          <div style="
-            padding: 10px;
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            font-family: 'Outfit', sans-serif;
-            font-size: 13px;
-            color: #1a202c;
-            min-width: 140px;
-          ">
-            <div style="font-weight: 600; margin-bottom: 6px;">${label}</div>
-            ${activeSeries}
-          </div>
-        `;
-      },
-    },
-    responsive: [
-      {
-        breakpoint: 640,
-        options: {
-          chart: { height: 240 },
-          dataLabels: { enabled: false },
-        },
-      },
-    ],
-  };
-
-  // 7. Функция для отображения русского названия метрики в заголовке
-  const getMetricTitle = (metric: MetricType) => {
-    switch (metric) {
-      case "turnover":
-        return "Изменение оборота";
-      case "checks":
-        return "Изменение кол-ва чеков";
-      case "profit":
-        return "Изменение прибыли";
-      default:
-        return "";
-    }
-  };
+    responsive: [{ breakpoint: 640, options: { chart: { height: 240 }, dataLabels: { enabled: false } } }],
+  }), [processed, currentMetric, loading, error]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-5 pt-5 pb-6 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
-      {/* ── Заголовок + кнопки выбора метрики ── */}
-      <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:justify-between sm:items-center">
+    <div className="rounded-2xl border bg-white dark:bg-gray-800 dark:border-gray-700 p-5 sm:p-6">
+      {/* Header + Metric Toggle */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-            {getMetricTitle(selectedMetric)}
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+            {currentMetric.label}
           </h3>
-          <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-            {/* Подзаголовок можно менять динамически, если нужно */}
-            Просмотр по месяцам
-          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Просмотр по месяцам</p>
         </div>
-
-        {/* ── Три кнопки для выбора метрики ── */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setSelectedMetric("turnover")}
-            className={`
-              px-4 py-2 rounded-lg text-sm font-medium transition-colors
-              ${
-                selectedMetric === "turnover"
-                  ? "bg-[#629731] text-white"
-                  : "bg-[#b9bec5] text-[#51565e] hover:bg-[#9dbf7c]"
-              }
-            `}
-          >
-            Изменение оборота
-          </button>
-          <button
-            onClick={() => setSelectedMetric("checks")}
-            className={`
-              px-4 py-2 rounded-lg text-sm font-medium transition-colors
-              ${
-                selectedMetric === "checks"
-                  ? "bg-[#629731] text-white"
-                  : "bg-[#b9bec5] text-[#51565e] hover:bg-[#9dbf7c]"
-              }
-            `}
-          >
-            Изменение кол-ва чеков
-          </button>
-          <button
-            onClick={() => setSelectedMetric("profit")}
-            className={`
-              px-4 py-2 rounded-lg text-sm font-medium transition-colors
-              ${
-                selectedMetric === "profit"
-                  ? "bg-[#629731] text-white"
-                  : "bg-[#b9bec5] text-[#51565e] hover:bg-[#9dbf7c]"
-              }
-            `}
-          >
-            Изменение прибыли
-          </button>
+        <div className="mt-3 sm:mt-0 flex flex-wrap gap-2">
+          {METRICS_CONFIG.map(m => (
+            <button
+              key={m.id}
+              onClick={() => setSelectedMetric(m.id)}
+              className={classNames(
+                "px-3 py-1.5 rounded-lg text-sm font-medium transition",
+                selectedMetric === m.id
+                  ? "text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+              )}
+              style={selectedMetric === m.id ? { backgroundColor: m.color } : undefined}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* ── Верхний правый Dropdown (опции) ── */}
-      <div className="flex items-center justify-between mb-4">
-        <div></div>
-        <div className="relative inline-block">
-          <button className="dropdown-toggle" onClick={toggleDropdown}>
-            <MoreDotIcon className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 size-6" />
+      {/* Segmentation Tabs */}
+      <div className="flex gap-4 mb-4">
+        {[
+          { id: "all", label: "Все" },
+          { id: "leaders", label: "Лидеры" },
+          { id: "outsiders", label: "Аутсайдеры" },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setSegment(tab.id as SegmentType)}
+            className={classNames(
+              "px-3 py-1 rounded-md text-sm",
+              segment === tab.id
+                ? "bg-gray-200 dark:bg-gray-700 font-medium"
+                : "bg-transparent text-gray-600 dark:text-gray-400 hover:underline"
+            )}
+          >
+            {tab.label}
           </button>
-          <Dropdown isOpen={isOpen} onClose={closeDropdown} className="w-40 p-2">
-            <DropdownItem onItemClick={closeDropdown}>Смотреть детали</DropdownItem>
-            <DropdownItem onItemClick={closeDropdown}>Экспорт данных</DropdownItem>
-            <DropdownItem onItemClick={closeDropdown}>Настроить</DropdownItem>
+        ))}
+      </div>
+
+      {/* Controls */}
+      <div className="flex justify-between items-center mb-2">
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          {loading && "Загрузка данных..."}
+          {error && <span className="text-red-500">{error}</span>}
+        </div>
+        <div className="relative">
+          <button onClick={() => setIsDropdownOpen(o => !o)} aria-label="Опции графика">
+            <MoreDotIcon className="size-6 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
+          </button>
+          <Dropdown isOpen={isDropdownOpen} onClose={() => setIsDropdownOpen(false)} align="right">
+            <DropdownItem onItemClick={() => setIsDropdownOpen(false)}>Смотреть детали</DropdownItem>
+            <DropdownItem onItemClick={() => setIsDropdownOpen(false)}>Экспорт данных</DropdownItem>
+            <DropdownItem onItemClick={() => setIsDropdownOpen(false)}>Настроить</DropdownItem>
           </Dropdown>
         </div>
       </div>
 
-      {/* ── Сам график ── */}
-      <div className="max-w-full overflow-x-auto custom-scrollbar">
-        <div className="-ml-5 min-w-[650px] xl:min-w-full pl-2">
-          <Chart options={options} series={series} type="bar" height={280} />
-        </div>
+      {/* Chart */}
+      <div className="relative">
+        <Chart options={chartOptions} series={processed.series} type="bar" height={300} />
+        {loading && (
+          <div className="absolute inset-0 bg-white/70 dark:bg-gray-900/70 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-gray-800 dark:border-gray-200" />
+          </div>
+        )}
       </div>
     </div>
   );
