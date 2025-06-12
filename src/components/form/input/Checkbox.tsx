@@ -5,7 +5,7 @@ interface CheckboxProps {
   checked: boolean;
   className?: string;
   id?: string;
-  onChange: (checked: boolean) => void;
+  onChange?: (checked: boolean) => void; // ← теперь необязательный
   disabled?: boolean;
 }
 
@@ -34,7 +34,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
           className
         )}
         checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
+        onChange={(e) => onChange?.(e.target.checked)} // ✅ безопасный вызов
         disabled={disabled}
       />
       {label && <span className="text-sm font-medium">{label}</span>}

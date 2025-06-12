@@ -5,11 +5,11 @@ import Label from "../form/Label";
 import Input from "../form/input/InputField";
 import Checkbox from "../form/input/Checkbox";
 
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 
-// ✅ Схема валидации (с детализированными ошибками)
+// ✅ Схема валидации
 const schema = yup.object().shape({
   firstName: yup
     .string()
@@ -19,7 +19,6 @@ const schema = yup.object().shape({
       "Имя должно содержать только буквы",
       (value) => /^[A-Za-zА-Яа-яЁё\s-]+$/.test(value || "")
     ),
-
   lastName: yup
     .string()
     .required("Фамилия обязательна")
@@ -28,12 +27,10 @@ const schema = yup.object().shape({
       "Фамилия должна содержать только буквы",
       (value) => /^[A-Za-zА-Яа-яЁё\s-]+$/.test(value || "")
     ),
-
   email: yup
     .string()
     .required("Email обязателен")
     .email("Введите корректный email"),
-
   password: yup
     .string()
     .required("Пароль обязателен")
@@ -68,11 +65,42 @@ export default function SignUpForm() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
-    mode: "onChange", // ✅ Обновление ошибок при каждом вводе
+    mode: "onChange",
   });
+
+  const passwordValue = useWatch({ control, name: "password" });
+
+  const passwordRules = [
+    {
+      id: 1,
+      label: "Минимум 8 символов",
+      isValid: (val: string) => val.length >= 8,
+    },
+    {
+      id: 2,
+      label: "Хотя бы одна строчная буква",
+      isValid: (val: string) => /[a-z]/.test(val),
+    },
+    {
+      id: 3,
+      label: "Хотя бы одна заглавная буква",
+      isValid: (val: string) => /[A-Z]/.test(val),
+    },
+    {
+      id: 4,
+      label: "Хотя бы одна цифра",
+      isValid: (val: string) => /\d/.test(val),
+    },
+    {
+      id: 5,
+      label: "Хотя бы один спецсимвол (@$!%*?&/#^()+-)",
+      isValid: (val: string) => /[@$!%*?&/#^()+\-]/.test(val),
+    },
+  ];
 
   const onSubmit = async (data: any) => {
     try {
@@ -104,7 +132,7 @@ export default function SignUpForm() {
           className="inline-flex items-center text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
         >
           <ChevronLeftIcon className="size-5" />
-          Back to dashboard
+          Назад к панели
         </Link>
       </div>
 
@@ -112,24 +140,24 @@ export default function SignUpForm() {
         <div>
           <div className="mb-5 sm:mb-8">
             <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-              Sign Up
+              Регистрация
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Enter your email and password to sign up!
+              Введите ваш email и пароль, чтобы создать аккаунт
             </p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)}>
             <div className="space-y-5">
-              {/* First & Last Name */}
+              {/* Имя и фамилия */}
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                 <div className="sm:col-span-1">
                   <Label>
-                    First Name<span className="text-error-500">*</span>
+                    Имя<span className="text-error-500">*</span>
                   </Label>
                   <Input
                     type="text"
-                    placeholder="Enter your first name"
+                    placeholder="Введите имя"
                     {...register("firstName")}
                   />
                   {errors.firstName && (
@@ -138,11 +166,11 @@ export default function SignUpForm() {
                 </div>
                 <div className="sm:col-span-1">
                   <Label>
-                    Last Name<span className="text-error-500">*</span>
+                    Фамилия<span className="text-error-500">*</span>
                   </Label>
                   <Input
                     type="text"
-                    placeholder="Enter your last name"
+                    placeholder="Введите фамилию"
                     {...register("lastName")}
                   />
                   {errors.lastName && (
@@ -158,7 +186,7 @@ export default function SignUpForm() {
                 </Label>
                 <Input
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder="Введите email"
                   {...register("email")}
                 />
                 {errors.email && (
@@ -166,14 +194,14 @@ export default function SignUpForm() {
                 )}
               </div>
 
-              {/* Password */}
+              {/* Пароль */}
               <div>
                 <Label>
-                  Password<span className="text-error-500">*</span>
+                  Пароль<span className="text-error-500">*</span>
                 </Label>
                 <div className="relative">
                   <Input
-                    placeholder="Enter your password"
+                    placeholder="Введите пароль"
                     type={showPassword ? "text" : "password"}
                     {...register("password")}
                   />
@@ -191,48 +219,60 @@ export default function SignUpForm() {
                 {errors.password && (
                   <p className="text-red-500 text-sm">{errors.password.message}</p>
                 )}
+
+                {/* ✅ Блок визуализации требований */}
+                <ul className="mt-3 space-y-2 text-sm">
+                  {passwordRules.map((rule) => {
+                    const valid = rule.isValid(passwordValue || "");
+                    return (
+                      <li key={rule.id} className="flex items-center gap-2">
+                        <Checkbox
+                          className="w-4 h-4"
+                          checked={valid}
+                          disabled
+                        />
+                        <span className={`${valid ? "text-green-600" : "text-gray-500"}`}>
+                          {rule.label}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
 
-              {/* Checkbox */}
+              {/* Согласие с условиями */}
               <div className="flex items-center gap-3">
                 <Checkbox
                   className="w-5 h-5"
                   checked={isChecked}
                   onChange={setIsChecked}
                 />
-                <p className="inline-block font-normal text-gray-500 dark:text-gray-400">
-                  By creating an account you agree to the{" "}
-                  <span className="text-gray-800 dark:text-white/90">
-                    Terms and Conditions,
-                  </span>{" "}
-                  and our{" "}
-                  <span className="text-gray-800 dark:text-white">
-                    Privacy Policy
-                  </span>
+                <p className="inline-block font-normal text-gray-800 dark:text-white">
+                  Регистрируясь, вы соглашаетесь с условиями использования и политикой конфиденциальности
                 </p>
               </div>
 
-              {/* Submit */}
+              {/* Кнопка */}
               <div>
                 <button
                   type="submit"
                   className="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition rounded-lg bg-brand-500 shadow-theme-xs hover:bg-brand-600"
                 >
-                  Sign Up
+                  Зарегистрироваться
                 </button>
               </div>
             </div>
           </form>
 
-          {/* Redirect */}
+          {/* Уже есть аккаунт */}
           <div className="mt-5">
             <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
-              Already have an account?
+              Уже есть аккаунт?{" "}
               <Link
                 to="/signin"
                 className="text-brand-500 hover:text-brand-600 dark:text-brand-400"
               >
-                Sign In
+                Войти
               </Link>
             </p>
           </div>
