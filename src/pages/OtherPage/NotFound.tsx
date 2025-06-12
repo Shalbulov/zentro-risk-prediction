@@ -6,14 +6,14 @@ export default function NotFound() {
   return (
     <>
       <PageMeta
-        title="React.js 404 Dashboard | TailAdmin - React.js Admin Dashboard Template"
-        description="This is React.js 404 Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="React.js 404 Панель | TailAdmin - Шаблон Админ-Панели на React.js"
+        description="Это страница 404 ошибки для TailAdmin — шаблона админ-панели на React.js и Tailwind CSS"
       />
       <div className="relative flex flex-col items-center justify-center min-h-screen p-6 overflow-hidden z-1">
         <GridShape />
         <div className="mx-auto w-full max-w-[242px] text-center sm:max-w-[472px]">
           <h1 className="mb-8 font-bold text-[#629731] text-title-md dark:text-white/90 xl:text-title-2xl">
-            ERROR
+            ОШИБКА
           </h1>
 
           <img src="/images/error/404.svg" alt="404" className="dark:hidden" />
@@ -24,7 +24,7 @@ export default function NotFound() {
           />
 
           <p className="mt-10 mb-6 text-base text-gray-700 dark:text-gray-400 sm:text-lg">
-            We can’t seem to find the page you are looking for!
+            Похоже, мы не можем найти страницу, которую вы ищете!
           </p>
 
           <Link
@@ -39,7 +39,7 @@ export default function NotFound() {
               dark:bg-[#629731] dark:hover:bg-[#428032]
             "
           >
-            Back to Home Page
+            Вернуться на главную
           </Link>
         </div>
         {/* <!-- Footer --> */}

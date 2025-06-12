@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 
-// Assume these icons are imported from an icon library
+// Предполагается, что эти иконки импортированы из библиотеки
 import {
   BoxCubeIcon,
   CalenderIcon,
@@ -26,53 +26,40 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-{
-  icon: <GridIcon />,
-  name: "Dashboard",
-  path: "/", // прямая ссылка
-},
-
+  {
+    icon: <GridIcon />,
+    name: "Панель",
+    path: "/", // прямая ссылка
+  },
   {
     icon: <CalenderIcon />,
-    name: "Calendar",
+    name: "Календарь",
     path: "/calendar",
   },
   {
     icon: <UserCircleIcon />,
-    name: "User Profile",
+    name: "Профиль пользователя",
     path: "/profile",
   },
   {
     icon: <TableIcon />,
-    path: "/calendar",
-    name: "Tables",
-    subItems: [{ name: "Basic Tables", path: "/basic-tables", pro: false }],
+    name: "Таблицы",
+    path: "/basic-tables", // или любой путь, который вы хотите
   },
   {
-    name: "Pages",
+    name: "Страница ошибки",
     icon: <PageIcon />,
-    subItems: [
-      { name: "Blank Page", path: "/blank", pro: false },
-      { name: "404 Error", path: "/error-404", pro: false },
-    ],
+    path: "/error-404", // или другой маршрут, который вы предпочитаете
   },
 ];
 
 const othersItems: NavItem[] = [
   {
-    icon: <PieChartIcon />,
-    name: "Charts",
-    subItems: [
-      { name: "Line Chart", path: "/line-chart", pro: false },
-      { name: "Bar Chart", path: "/bar-chart", pro: false },
-    ],
-  },
-  {
     icon: <PlugInIcon />,
-    name: "Authentication",
+    name: "Аутентификация",
     subItems: [
-      { name: "Sign In", path: "/signin", pro: false },
-      { name: "Sign Up", path: "/signup", pro: false },
+      { name: "Вход", path: "/signin", pro: false },
+      { name: "Регистрация", path: "/signup", pro: false },
     ],
   },
 ];
@@ -90,7 +77,7 @@ const AppSidebar: React.FC = () => {
   );
   const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // const isActive = (path: string) => location.pathname === path;
+  // Проверка активного пути
   const isActive = useCallback(
     (path: string) => location.pathname === path,
     [location.pathname]
@@ -133,11 +120,11 @@ const AppSidebar: React.FC = () => {
   }, [openSubmenu]);
 
   const handleSubmenuToggle = (index: number, menuType: "main" | "others") => {
-    setOpenSubmenu((prevOpenSubmenu) => {
+    setOpenSubmenu((prev) => {
       if (
-        prevOpenSubmenu &&
-        prevOpenSubmenu.type === menuType &&
-        prevOpenSubmenu.index === index
+        prev &&
+        prev.type === menuType &&
+        prev.index === index
       ) {
         return null;
       }
@@ -163,7 +150,7 @@ const AppSidebar: React.FC = () => {
               }`}
             >
               <span
-                className={`menu-item-icon-size  ${
+                className={`menu-item-icon-size ${
                   openSubmenu?.type === menuType && openSubmenu?.index === index
                     ? "menu-item-icon-active"
                     : "menu-item-icon-inactive"
@@ -190,7 +177,9 @@ const AppSidebar: React.FC = () => {
               <Link
                 to={nav.path}
                 className={`menu-item group ${
-                  isActive(nav.path) ? "menu-item-active" : "menu-item-inactive"
+                  isActive(nav.path)
+                    ? "menu-item-active"
+                    : "menu-item-inactive"
                 }`}
               >
                 <span
@@ -242,7 +231,7 @@ const AppSidebar: React.FC = () => {
                                 : "menu-dropdown-badge-inactive"
                             } menu-dropdown-badge`}
                           >
-                            new
+                            новинка
                           </span>
                         )}
                         {subItem.pro && (
@@ -283,37 +272,35 @@ const AppSidebar: React.FC = () => {
       onMouseEnter={() => !isExpanded && setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-<div className="py-8 flex justify-start"> 
-  <Link to="/" className="flex items-center">
-{/* <div className="py-8 flex justify-center">
-  <Link to="/"> */}
-    {isExpanded || isHovered || isMobileOpen ? (
-      <>
-        <img
-          className="dark:hidden"
-          src="/images/logo/logo.png"
-          alt="Logo"
-          width={187.5}
-          height={50}  
-        />
-        <img
-          className="hidden dark:block"
-          src="/images/logo/logo-dark.png"
-          alt="Logo"
-          width={187.5} 
-          height={50} 
-        />
-      </>
-    ) : (
-      <img
-        src="/images/logo/logo-icon.png"
-        alt="Logo"
-        width={40}     
-        height={40}   
-      />
-    )}
-  </Link>
-</div>
+      <div className="py-8 flex justify-start">
+        <Link to="/" className="flex items-center">
+          {isExpanded || isHovered || isMobileOpen ? (
+            <>
+              <img
+                className="dark:hidden"
+                src="/images/logo/logo.png"
+                alt="Логотип"
+                width={187.5}
+                height={50}
+              />
+              <img
+                className="hidden dark:block"
+                src="/images/logo/logo-dark.png"
+                alt="Логотип"
+                width={187.5}
+                height={50}
+              />
+            </>
+          ) : (
+            <img
+              src="/images/logo/logo-icon.png"
+              alt="Логотип"
+              width={40}
+              height={40}
+            />
+          )}
+        </Link>
+      </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">
           <div className="flex flex-col gap-4">
@@ -326,14 +313,14 @@ const AppSidebar: React.FC = () => {
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Menu"
+                  "Меню"
                 ) : (
                   <HorizontaLDots className="size-6" />
                 )}
               </h2>
               {renderMenuItems(navItems, "main")}
             </div>
-            <div className="">
+            <div>
               <h2
                 className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${
                   !isExpanded && !isHovered
@@ -342,7 +329,7 @@ const AppSidebar: React.FC = () => {
                 }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
-                  "Others"
+                  "Дополнительно"
                 ) : (
                   <HorizontaLDots />
                 )}

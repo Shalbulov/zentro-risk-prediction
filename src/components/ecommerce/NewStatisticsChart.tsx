@@ -23,10 +23,11 @@ interface MetricConfig {
 }
 
 const METRICS_CONFIG: MetricConfig[] = [
-  { id: "turnover", label: "Изменение оборота",    color: "#629731", unit: "%" },
-  { id: "checks",   label: "Изменение кол-ва чеков", color: "#4C8BF5", unit: "%" },
-  { id: "profit",   label: "Изменение прибыли",     color: "#FF6B6B", unit: "%" },
+  { id: "turnover", label: "Изменение оборота",    color: "#428032", unit: "%" },   // Primary green
+  { id: "checks",   label: "Изменение кол-ва чеков", color: "#d24917", unit: "%" },   // Secondary green shade
+  { id: "profit",   label: "Изменение прибыли",     color: "#6a717b", unit: "%" },   // High-priority warning red
 ];
+
 
 export default function NewStatisticsChart() {
   const [selectedMetric, setSelectedMetric] = useState<MetricType>("turnover");

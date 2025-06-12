@@ -5,7 +5,7 @@ export default {
   darkMode: "class",
   theme: {
     fontFamily: {
-      outfit: ["Outfit", "sans-serif"],
+      outfit: ["SF Pro Display"],
     },
     screens: {
       "2xsm": "375px",
