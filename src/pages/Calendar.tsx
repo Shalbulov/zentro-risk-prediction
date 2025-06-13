@@ -8,6 +8,9 @@ import { Modal } from "../components/ui/modal";
 import { useModal } from "../hooks/useModal";
 import PageMeta from "../components/common/PageMeta";
 
+// ⚠️ При необходимости скорректируйте импорт BASE_URL
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:4000";
+
 interface CalendarEvent extends EventInput {
   extendedProps: {
     calendar: string;
@@ -15,9 +18,7 @@ interface CalendarEvent extends EventInput {
 }
 
 const Calendar: React.FC = () => {
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
-    null
-  );
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [eventTitle, setEventTitle] = useState("");
   const [eventStartDate, setEventStartDate] = useState("");
   const [eventEndDate, setEventEndDate] = useState("");
@@ -25,6 +26,9 @@ const Calendar: React.FC = () => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const calendarRef = useRef<FullCalendar>(null);
   const { isOpen, openModal, closeModal } = useModal();
+
+  // Для теста можно менять на настоящие userId
+  const CURRENT_USER_ID = 2;
 
   const calendarsEvents = {
     Danger: "danger",
@@ -34,7 +38,7 @@ const Calendar: React.FC = () => {
   };
 
   useEffect(() => {
-    // Initialize with some events
+    // Можно позже добавить fetch ивентов с бэка
     setEvents([
       {
         id: "1",
@@ -75,9 +79,16 @@ const Calendar: React.FC = () => {
     openModal();
   };
 
-  const handleAddOrUpdateEvent = () => {
+  // ⬇️ Обновленный метод: отправляет событие на сервер
+  const handleAddOrUpdateEvent = async () => {
+    // ===== ВАЛИДАЦИЯ ПОЛЕЙ =====
+    if (!eventTitle || !eventStartDate || !eventEndDate || !eventLevel) {
+      alert("Пожалуйста, заполните все поля и выберите цвет события.");
+      return;
+    }
+    // ===========================
     if (selectedEvent) {
-      // Update existing event
+      // Update existing event (только в стейте, если нужно - можно сделать PATCH на бэке)
       setEvents((prevEvents) =>
         prevEvents.map((event) =>
           event.id === selectedEvent.id
@@ -92,7 +103,7 @@ const Calendar: React.FC = () => {
         )
       );
     } else {
-      // Add new event
+      // Add new event (отправляем POST на сервер)
       const newEvent: CalendarEvent = {
         id: Date.now().toString(),
         title: eventTitle,
@@ -102,6 +113,24 @@ const Calendar: React.FC = () => {
         extendedProps: { calendar: eventLevel },
       };
       setEvents((prevEvents) => [...prevEvents, newEvent]);
+
+      // 📩 Отправка события на backend (await — чтобы дождаться ошибки, если будет)
+      try {
+        await fetch(`${BASE_URL}/api/events`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: eventTitle,
+            startDate: eventStartDate,
+            endDate: eventEndDate,
+            color: eventLevel,
+            userId: CURRENT_USER_ID,
+          }),
+        });
+      } catch (error) {
+        // Можно показать ошибку пользователю (например, toast)
+        console.error("Ошибка при сохранении события:", error);
+      }
     }
     closeModal();
     resetModalFields();
@@ -121,7 +150,7 @@ const Calendar: React.FC = () => {
         title="Korzinka BI"
         description="Korzinka BIe"
       />
-      <div className="rounded-2xl border  border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
+      <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
         <div className="custom-calendar">
           <FullCalendar
             ref={calendarRef}

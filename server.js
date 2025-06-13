@@ -8,16 +8,15 @@ import fs from "fs";
 import path from "path";
 import pool from "./db.js";
 import authRoutes from "./routes/auth.js";
-
+import nodemailer from "nodemailer";
 
 const app = express();
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 
 app.use(cors());
+app.use(express.json());
 
-app.use(express.json()); // ✅ если планируешь использовать body JSON в будущем
-
-// ✅ Тест подключения к базе (ставим после app и до других маршрутов)
+// ✅ Тест подключения к базе
 app.get("/api/test-db", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");
@@ -30,6 +29,56 @@ app.get("/api/test-db", async (req, res) => {
 
 app.use("/api/auth", authRoutes);
 
+// =============== НОВЫЙ РОУТ ДЛЯ ДОБАВЛЕНИЯ СОБЫТИЯ =================
+app.post("/api/events", async (req, res) => {
+  const { title, startDate, endDate, color, userId } = req.body;
+
+  // ----------- ВАЛИДАЦИЯ ВСЕХ ПОЛЕЙ ----------
+  if (!title || !startDate || !endDate || !color || !userId) {
+    return res.status(400).json({ error: "Все поля обязательны для заполнения." });
+  }
+  // --------------------------------------------
+
+  try {
+    // 1. Сохраняем событие в БД
+    await pool.query(
+      `INSERT INTO events (title, start_date, end_date, color, user_id)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [title, startDate, endDate, color, userId]
+    );
+
+    // 2. Получаем email пользователя
+    const userResult = await pool.query(
+      `SELECT email FROM users WHERE id = $1`,
+      [userId]
+    );
+    const email = userResult.rows?.[0]?.email;
+
+    if (email) {
+      // 3. Отправляем уведомление на email
+      const transporter = nodemailer.createTransport({
+        service: "Gmail",
+        auth: {
+          user: process.env.MAIL_USER,
+          pass: process.env.MAIL_PASS,
+        },
+      });
+
+      await transporter.sendMail({
+        from: '"Calendar" <calendar@korzinka.kz>',
+        to: email,
+        subject: "Новое событие в календаре",
+        text: `📅 Новое событие: "${title}"\nС: ${startDate}\nПо: ${endDate}`,
+      });
+    }
+
+    res.status(200).json({ message: "Event saved and email sent" });
+  } catch (error) {
+    console.error("❌ Error saving event:", error);
+    res.status(500).json({ error: "Event creation failed" });
+  }
+});
+// ====================================================================
 
 /**
  * 1) Месячные данные за 2023, 2024 и 2025 годы для трёх метрик:
@@ -45,7 +94,7 @@ const yearData = {
     checks:   [48, 55, 60, 57, 62, 60, 70, 75, 78, 80, 82, 85],
     profit:   [22, 25, 28, 26, 30, 29, 32, 35, 38, 40, 42, 45],
   },
-  "2025": {  // искусственные данные на 2025 год
+  "2025": {
     turnover: [70, 82, 94, 89, 98, 95, 105, 110, 115, 120, 125, 130],
     checks:   [50, 60, 65, 63, 70, 68, 75, 78, 80, 85, 87, 90],
     profit:   [25, 28, 30, 29, 33, 31, 35, 37, 40, 42, 45, 48],
@@ -150,7 +199,6 @@ app.get("/api/statistics", (req, res) => {
 
 /**
  * 5) /api/sales/statistics?start=dd-MM-yyyy&end=dd-MM-yyyy
- *    Единый эндпоинт, возвращающий все KPI одновременно
  */
 app.get("/api/sales/statistics", (req, res) => {
   const { start, end } = req.query;
