@@ -29,7 +29,7 @@ const navItems: NavItem[] = [
   {
     icon: <GridIcon />,
     name: "Панель",
-    path: "/", // прямая ссылка
+    path: "/",
   },
   {
     icon: <CalenderIcon />,
@@ -41,15 +41,18 @@ const navItems: NavItem[] = [
     name: "Профиль пользователя",
     path: "/profile",
   },
-  {
-    icon: <TableIcon />,
-    name: "Таблицы",
-    path: "/basic-tables", // или любой путь, который вы хотите
-  },
+{
+  icon: <TableIcon />,
+  name: "Таблицы",
+  subItems: [
+    { name: "Основные таблицы", path: "/basic-tables" },
+    { name: "Dynamic таблица", path: "/blank" },
+  ],
+},
   {
     name: "Страница ошибки",
     icon: <PageIcon />,
-    path: "/error-404", // или другой маршрут, который вы предпочитаете
+    path: "/error-404",
   },
 ];
 

@@ -105,7 +105,7 @@ export default function NewStatisticsChart() {
       enabled: true,
       formatter: v => `${v}${currentMetric.unit}`,
       offsetY: -6,
-      style: { fontSize: "10px", colors: ["#51565e"] },
+      style: { fontSize: "10px", colors: ["#ffffff"] },
     },
     tooltip: {
       theme: "light",
@@ -183,16 +183,7 @@ export default function NewStatisticsChart() {
           {loading && "Загрузка данных..."}
           {error && <span className="text-red-500">{error}</span>}
         </div>
-        <div className="relative">
-          <button onClick={() => setIsDropdownOpen(o => !o)} aria-label="Опции графика">
-            <MoreDotIcon className="size-6 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
-          </button>
-          <Dropdown isOpen={isDropdownOpen} onClose={() => setIsDropdownOpen(false)} align="right">
-            <DropdownItem onItemClick={() => setIsDropdownOpen(false)}>Смотреть детали</DropdownItem>
-            <DropdownItem onItemClick={() => setIsDropdownOpen(false)}>Экспорт данных</DropdownItem>
-            <DropdownItem onItemClick={() => setIsDropdownOpen(false)}>Настроить</DropdownItem>
-          </Dropdown>
-        </div>
+
       </div>
 
       {/* Chart */}

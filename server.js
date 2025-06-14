@@ -1,7 +1,7 @@
 // server.js
 import dotenv from "dotenv";
 dotenv.config();
-
+import csv from 'csv-parser'; 
 import express from "express";
 import cors from "cors";
 import fs from "fs";
@@ -79,6 +79,60 @@ app.post("/api/events", async (req, res) => {
   }
 });
 // ====================================================================
+app.get('/api/products', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    
+    // Read CSV file
+    const results = [];
+    const filePath = path.join(process.cwd(), 'data.csv');
+    
+    await new Promise((resolve, reject) => {
+      fs.createReadStream(filePath)
+        .pipe(csv({
+          separator: ';',
+          headers: ['code', 'description'],
+          skipLines: 1
+        }))
+        .on('data', (data) => {
+          // Filter by search term if provided
+          if (!search || 
+              data.code.toLowerCase().includes(search.toLowerCase()) || 
+              data.description.toLowerCase().includes(search.toLowerCase())) {
+            results.push({
+              code: data.code.trim(),
+              description: data.description.trim()
+            });
+          }
+        })
+        .on('end', resolve)
+        .on('error', reject);
+    });
+
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    const paginatedProducts = results.slice(startIndex, endIndex);
+
+    res.json({
+      data: paginatedProducts,
+      columns: ['code', 'description'],
+      pagination: {
+        page,
+        limit,
+        totalItems: results.length,
+        totalPages: Math.ceil(results.length / limit),
+        hasNextPage: endIndex < results.length,
+        hasPrevPage: startIndex > 0
+      }
+    });
+  } catch (error) {
+    console.error('Error processing products request:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 /**
  * 1) Месячные данные за 2023, 2024 и 2025 годы для трёх метрик:
