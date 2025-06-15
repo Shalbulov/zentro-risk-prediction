@@ -1,0 +1,10 @@
+.DS_Store
+Icon
+.vkorzinka/
+zentro-risk-prediction/
+.venv/
+__pycache__/
+*.pyc
+*.csv
+*.xlsx
+
