@@ -1,14 +1,44 @@
+import { useState } from "react";
 import { useModal } from "../../hooks/useModal";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
 import Input from "../form/input/InputField";
 import Label from "../form/Label";
+import { FiEdit, FiCalendar, FiPhone, FiMapPin, FiUser, FiShield, FiClock, FiLogIn } from "react-icons/fi";
 
 export default function UserMetaCard() {
   const { isOpen, openModal, closeModal } = useModal();
+  const [userData, setUserData] = useState({
+    firstName: "Admin",
+    lastName: "Nurtayeva",
+    phone: "+7 707 845 22 91",
+    bio: "UX/UI Designer",
+    birthDate: "",
+    city: "Astana",
+    country: "Kazakhstan",
+    role: "UX/UI Designer",
+    status: "Active",
+    registrationDate: "2024-11-10",
+    lastActivity: "2025-06-17 19:45",
+    loginCount: 238
+  });
+
   const handleSave = () => {
-    console.log("Saving changes...");
+    // In a real app, you would save to API here
+    console.log("Saved changes:", userData);
     closeModal();
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setUserData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      // In a real app, you would upload the file
+      console.log("New avatar selected:", e.target.files[0]);
+    }
   };
 
   return (
@@ -16,48 +46,128 @@ export default function UserMetaCard() {
       <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="flex flex-col items-center w-full gap-6 xl:flex-row">
-            <div className="w-20 h-20 overflow-hidden border border-gray-200 rounded-full dark:border-gray-800">
-              <img src="/images/user/owner.png" alt="user" />
+            <div className="relative group">
+              <div className="w-20 h-20 overflow-hidden border-2 border-gray-200 rounded-full dark:border-gray-700">
+                <img 
+                  src="/images/user/owner.png" 
+                  alt="user" 
+                  className="object-cover w-full h-full"
+                />
+              </div>
+              <label className="absolute bottom-0 right-0 flex items-center justify-center w-6 h-6 p-1 transition-all duration-200 bg-[#61962e] rounded-full cursor-pointer group-hover:bg-[#4d7a25]">
+                <FiEdit className="w-3 h-3 text-white" />
+                <input 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                />
+              </label>
             </div>
+            
             <div className="order-3 xl:order-2">
               <h4 className="mb-2 text-lg font-semibold text-center text-gray-800 dark:text-white/90 xl:text-left">
-                Admin Nurtayeva
+                {userData.firstName} {userData.lastName}
               </h4>
               <div className="flex flex-col items-center gap-1 text-center xl:flex-row xl:gap-3 xl:text-left">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  UX/UI Designer
+                  {userData.role}
                 </p>
                 <div className="hidden h-3.5 w-px bg-gray-300 dark:bg-gray-700 xl:block"></div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Astana, Kazakhstan
+                  {userData.city}, {userData.country}
                 </p>
               </div>
             </div>
-            <div className="flex items-center order-2 gap-2 grow xl:order-3 xl:justify-end"></div>
           </div>
+          
           <button
             onClick={openModal}
             className="flex w-full items-center justify-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200 lg:inline-flex lg:w-auto"
           >
-            <svg
-              className="fill-current"
-              width="18"
-              height="18"
-              viewBox="0 0 18 18"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M15.0911 2.78206C14.2125 1.90338 12.7878 1.90338 11.9092 2.78206L4.57524 10.116C4.26682 10.4244 4.0547 10.8158 3.96468 11.2426L3.31231 14.3352C3.25997 14.5833 3.33653 14.841 3.51583 15.0203C3.69512 15.1996 3.95286 15.2761 4.20096 15.2238L7.29355 14.5714C7.72031 14.4814 8.11172 14.2693 8.42013 13.9609L15.7541 6.62695C16.6327 5.74827 16.6327 4.32365 15.7541 3.44497L15.0911 2.78206ZM12.9698 3.84272C13.2627 3.54982 13.7376 3.54982 14.0305 3.84272L14.6934 4.50563C14.9863 4.79852 14.9863 5.2734 14.6934 5.56629L14.044 6.21573L12.3204 4.49215L12.9698 3.84272ZM11.2597 5.55281L5.6359 11.1766C5.53309 11.2794 5.46238 11.4099 5.43238 11.5522L5.01758 13.5185L6.98394 13.1037C7.1262 13.0737 7.25666 13.003 7.35947 12.9002L12.9833 7.27639L11.2597 5.55281Z"
-              />
-            </svg>
+            <FiEdit className="w-4 h-4" />
             Edit
           </button>
         </div>
+
+        {/* Additional User Info */}
+        <div className="grid grid-cols-1 gap-4 mt-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg dark:bg-gray-800/50">
+            <FiCalendar className="flex-shrink-0 w-5 h-5 mt-0.5 text-gray-500 dark:text-gray-400" />
+            <div>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Date of Birth</p>
+              <p className="text-gray-800 dark:text-white/90">
+                {userData.birthDate || "Not specified"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg dark:bg-gray-800/50">
+            <FiPhone className="flex-shrink-0 w-5 h-5 mt-0.5 text-gray-500 dark:text-gray-400" />
+            <div>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Phone</p>
+              <p className="text-gray-800 dark:text-white/90">{userData.phone}</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg dark:bg-gray-800/50">
+            <FiMapPin className="flex-shrink-0 w-5 h-5 mt-0.5 text-gray-500 dark:text-gray-400" />
+            <div>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Location</p>
+              <p className="text-gray-800 dark:text-white/90">
+                {userData.city}, {userData.country}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg dark:bg-gray-800/50">
+            <FiShield className="flex-shrink-0 w-5 h-5 mt-0.5 text-gray-500 dark:text-gray-400" />
+            <div>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Account Status</p>
+              <p className="text-gray-800 dark:text-white/90">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                  {userData.status}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg dark:bg-gray-800/50">
+            <FiClock className="flex-shrink-0 w-5 h-5 mt-0.5 text-gray-500 dark:text-gray-400" />
+            <div>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Registration Date</p>
+              <p className="text-gray-800 dark:text-white/90">{userData.registrationDate}</p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg dark:bg-gray-800/50">
+            <FiLogIn className="flex-shrink-0 w-5 h-5 mt-0.5 text-gray-500 dark:text-gray-400" />
+            <div>
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Login Count</p>
+              <p className="text-gray-800 dark:text-white/90">{userData.loginCount}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Help text */}
+      <div className="p-5 mt-6 bg-gradient-to-r from-blue-50 to-emerald-50 rounded-xl dark:from-blue-900/20 dark:to-emerald-900/20">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h5 className="font-medium text-gray-800 dark:text-white/90">Tips</h5>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+Update your contact details to avoid missing important notifications.
+Your status determines access to functionality. In case of blocking - contact support.
+            </p>
+          </div>
+          <Button size="sm" variant="outline" className="whitespace-nowrap">
+            Learn More
+          </Button>
+        </div>
+      </div>
       </div>
 
+      {/* Edit Modal */}
       <Modal isOpen={isOpen} onClose={closeModal} className="max-w-[700px] m-4">
         <div className="no-scrollbar relative w-full max-w-[700px] overflow-y-auto rounded-3xl bg-white p-4 dark:bg-gray-900 lg:p-11">
           <div className="px-2 pr-14">
@@ -73,33 +183,78 @@ export default function UserMetaCard() {
               <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
                 <div className="col-span-2 lg:col-span-1">
                   <Label>First Name</Label>
-                  <Input type="text" value="Admin" />
+                  <Input 
+                    type="text" 
+                    name="firstName"
+                    value={userData.firstName}
+                    onChange={handleInputChange}
+                  />
                 </div>
 
                 <div className="col-span-2 lg:col-span-1">
                   <Label>Last Name</Label>
-                  <Input type="text" value="Nurtayeva" />
-                </div>
-
-                <div className="col-span-2 lg:col-span-1">
-                  <Label>Email Address</Label>
-                  <Input type="text" value="Admin.nurtayeva@vkus.kz" />
+                  <Input 
+                    type="text" 
+                    name="lastName"
+                    value={userData.lastName}
+                    onChange={handleInputChange}
+                  />
                 </div>
 
                 <div className="col-span-2 lg:col-span-1">
                   <Label>Phone</Label>
-                  <Input type="text" value="+7 707 845 22 91" />
+                  <Input 
+                    type="tel" 
+                    name="phone"
+                    value={userData.phone}
+                    onChange={handleInputChange}
+                  />
                 </div>
 
-                <div className="col-span-2">
-                  <Label>Bio</Label>
-                  <Input type="text" value="UX/UI Designer" />
+                <div className="col-span-2 lg:col-span-1">
+                  <Label>Date of Birth</Label>
+                  <Input 
+                    type="date" 
+                    name="birthDate"
+                    value={userData.birthDate}
+                    onChange={handleInputChange}
+                  />
+                </div>
+
+                <div className="col-span-2 lg:col-span-1">
+                  <Label>Role</Label>
+                  <Input 
+                    type="text" 
+                    name="bio"
+                    value={userData.bio}
+                    onChange={handleInputChange}
+                  />
+                </div>
+
+                <div className="col-span-2 lg:col-span-1">
+                  <Label>City</Label>
+                  <Input 
+                    type="text" 
+                    name="city"
+                    value={userData.city}
+                    onChange={handleInputChange}
+                  />
+                </div>
+
+                <div className="col-span-2 lg:col-span-1">
+                  <Label>Country</Label>
+                  <Input 
+                    type="text" 
+                    name="country"
+                    value={userData.country}
+                    onChange={handleInputChange}
+                  />
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
               <Button size="sm" variant="outline" onClick={closeModal}>
-                Close
+                Cancel
               </Button>
               <Button size="sm" onClick={handleSave}>
                 Save Changes

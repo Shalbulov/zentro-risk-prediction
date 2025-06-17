@@ -327,8 +327,7 @@ export default function UserTable() {
 
       {/* Add User Form */}
       {isAdding && (
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-
+        <div className="px-5 py-3 border-b border-gray-100 dark:border-white/[0.05] bg-gray-50 dark:bg-gray-800">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
             {Object.keys(newUser).map((key) => (
               <div key={key}>

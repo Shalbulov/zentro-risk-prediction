@@ -18,6 +18,9 @@ import Blank from "./pages/Blank";
 import AppLayout from "./layout/AppLayout";
 import { ScrollToTop } from "./components/common/ScrollToTop";
 import Home from "./pages/Dashboard/Home";
+import RulesPage from "./pages/RulesPage"; // Adjust the path if different
+import Switch from "../ui/switch/Switch";
+
 
 export default function App() {
   return (
@@ -28,6 +31,7 @@ export default function App() {
           {/* Dashboard Layout */}
           <Route element={<AppLayout />}>
             <Route index path="/" element={<Home />} />
+            <Route path="/rules" element={<RulesPage />} />
 
             {/* Others Page */}
             <Route path="/profile" element={<UserProfiles />} />
