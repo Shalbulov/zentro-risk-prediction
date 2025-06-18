@@ -90,6 +90,48 @@ app.put('/api/users/:id', async (req, res) => {
   }
 });
 
+// Обновить email
+app.put('/api/users/:id/email', async (req, res) => {
+  const { id } = req.params;
+  const { email } = req.body;
+  
+  // Валидация email
+  if (!email) return res.status(400).json({ error: "Email is required" });
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE users SET email = $1 WHERE id = $2 RETURNING *`,
+      [email, id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("❌ Error updating email:", err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Обновить пароль
+app.put('/api/users/:id/password', async (req, res) => {
+  const { id } = req.params;
+  const { password } = req.body;
+
+  // Валидация пароля
+  if (!password) return res.status(400).json({ error: "Password is required" });
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE users SET password = $1 WHERE id = $2 RETURNING *`,
+      [password, id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("❌ Error updating password:", err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // =============== КОНЕЦ РОУТОВ ПРОФИЛЯ ===============
 
 

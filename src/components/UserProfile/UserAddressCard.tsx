@@ -1,4 +1,3 @@
-
 import React, { lazy, Suspense, useState, useEffect } from "react";
 import Select from "../form/Select";
 import { useModal } from "../../hooks/useModal";
@@ -33,8 +32,25 @@ export default function UserAnalyticsDashboard() {
   const [selectedNotification, setSelectedNotification] = useState(notificationOptions[0].value);
   const [selectedTimezone, setSelectedTimezone] = useState(timezoneOptions[0].value);
 
-  const handleSave = () => {
-    console.log("Saving changes...");
+  const handleSave = async () => {
+    const user = {
+      first_name: "Anarbek", 
+      last_name: "Kozhakhmetov",
+      email: "anarbek.a@vkorzinka.kz",
+      phone: "564-786-475",
+      location: "Kazakhstan",
+      role: "Admin",
+      account_status: "Active",
+      avatar_url: "some-url",
+      last_activity: "2025-06-18",
+      iin: "850417301299",
+      postal_code: "010000",
+      city: "Astana",
+      region: "Akmola Region",
+    };
+    console.log("Saving changes...", user);
+    // Here, you can integrate a call to the backend to save changes to the user profile, e.g.:
+    // await api.put(`/api/users/${user.id}`, user);
     closeModal();
   };
 
@@ -101,7 +117,7 @@ export default function UserAnalyticsDashboard() {
     { value: "electronics", label: "Electronics" },
     { value: "specialty", label: "Specialty Stores" }
   ];
-  
+
   useEffect(() => {
     // Simulate loading map data
     setTimeout(() => {
