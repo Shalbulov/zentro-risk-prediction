@@ -29,6 +29,70 @@ app.get("/api/test-db", async (req, res) => {
 
 app.use("/api/auth", authRoutes);
 
+// =============== РОУТЫ ПРОФИЛЯ ПОЛЬЗОВАТЕЛЯ ===============
+
+// Получить профиль пользователя по id
+app.get('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, first_name, last_name, email, phone, location, role, account_status,
+              avatar_url, last_activity, iin, postal_code, city, region
+         FROM users WHERE id = $1`,
+      [id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("❌ Error getting user:", err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Обновить профиль пользователя по id (добавил новые поля!)
+app.put('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  const {
+    first_name, last_name, email, phone, location,
+    role, account_status, avatar_url, last_activity,
+    iin, postal_code, city, region // <- новые поля!
+  } = req.body;
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE users SET
+        first_name = $1,
+        last_name = $2,
+        email = $3,
+        phone = $4,
+        location = $5,
+        role = $6,
+        account_status = $7,
+        avatar_url = $8,
+        last_activity = $9,
+        iin = $10,
+        postal_code = $11,
+        city = $12,
+        region = $13
+       WHERE id = $14
+       RETURNING *`,
+      [
+        first_name, last_name, email, phone, location,
+        role, account_status, avatar_url, last_activity,
+        iin, postal_code, city, region, id
+      ]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'User not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    console.error("❌ Error updating user:", err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// =============== КОНЕЦ РОУТОВ ПРОФИЛЯ ===============
+
+
 // =============== НОВЫЙ РОУТ ДЛЯ ДОБАВЛЕНИЯ СОБЫТИЯ =================
 app.post("/api/events", async (req, res) => {
   const { title, startDate, endDate, color, userId } = req.body;

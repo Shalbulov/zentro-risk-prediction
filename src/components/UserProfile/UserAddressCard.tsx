@@ -1,3 +1,4 @@
+
 import React, { lazy, Suspense, useState, useEffect } from "react";
 import Select from "../form/Select";
 import { useModal } from "../../hooks/useModal";
@@ -15,9 +16,22 @@ export default function UserAnalyticsDashboard() {
   const { isOpen, openModal, closeModal } = useModal();
   const [language, setLanguage] = useState("Русский");
   const [activeTab, setActiveTab] = useState("analytics");
-  const [mapData, setMapData] = useState(null);
+  const [mapData, setMapData] = useState<any>(null);
   const [selectedRegion, setSelectedRegion] = useState("Taraz");
   const [storeTypeFilter, setStoreTypeFilter] = useState("all");
+
+  // NEW: State for selects
+  const notificationOptions = [
+    { value: "All notifications", label: "All notifications" },
+    { value: "Important only", label: "Important only" },
+    { value: "None", label: "None" },
+  ];
+  const timezoneOptions = [
+    { value: "Asia/Almaty (GMT+6)", label: "Asia/Almaty (GMT+6)" },
+    { value: "UTC", label: "UTC" },
+  ];
+  const [selectedNotification, setSelectedNotification] = useState(notificationOptions[0].value);
+  const [selectedTimezone, setSelectedTimezone] = useState(timezoneOptions[0].value);
 
   const handleSave = () => {
     console.log("Saving changes...");
@@ -87,7 +101,7 @@ export default function UserAnalyticsDashboard() {
     { value: "electronics", label: "Electronics" },
     { value: "specialty", label: "Specialty Stores" }
   ];
-
+  
   useEffect(() => {
     // Simulate loading map data
     setTimeout(() => {
@@ -120,11 +134,11 @@ export default function UserAnalyticsDashboard() {
             geometry: { type: 'Point', coordinates: [71.3964, 42.8989] }
           }
         ]
-      });
+      } as any);
     }, 500);
   }, []);
 
-  const handleRegionSelect = (region) => {
+  const handleRegionSelect = (region: string) => {
     setSelectedRegion(region);
   };
 
@@ -136,8 +150,6 @@ export default function UserAnalyticsDashboard() {
     <>
       <div className="p-5 border border-gray-200 rounded-2xl dark:border-gray-800 lg:p-6">
         {/* Header with language selector and tabs */}
-    
-
         {activeTab === 'analytics' ? (
           <div className="space-y-8">
             {/* User Address Section */}
@@ -202,9 +214,6 @@ export default function UserAnalyticsDashboard() {
                   Edit
                 </button>
               </div>
-
-            {/* Regional Analytics Section */}
-
           </div>
         ) : (
           <div className="p-6 bg-white border border-gray-200 rounded-xl dark:bg-gray-800 dark:border-gray-700">
@@ -215,27 +224,19 @@ export default function UserAnalyticsDashboard() {
               <div>
                 <Label>Notification Preferences</Label>
                 <Select
-                  value="All notifications"
-                  onChange={() => {}}
-                  options={[
-                    { value: "All notifications", label: "All notifications" },
-                    { value: "Important only", label: "Important only" },
-                    { value: "None", label: "None" },
-                  ]}
+                  value={selectedNotification}
+                  onChange={setSelectedNotification}
+                  options={notificationOptions}
                   className="w-full md:w-64"
                 />
               </div>
               
               <div>
                 <Label>Timezone</Label>
-
                 <Select
-                  value="Asia/Almaty (GMT+6)"
-                  onChange={() => {}}
-                  options={[
-                    { value: "Asia/Almaty (GMT+6)", label: "Asia/Almaty (GMT+6)" },
-                    { value: "UTC", label: "UTC" },
-                  ]}
+                  value={selectedTimezone}
+                  onChange={setSelectedTimezone}
+                  options={timezoneOptions}
                   className="w-full md:w-64"
                 />
               </div>
@@ -271,24 +272,20 @@ export default function UserAnalyticsDashboard() {
                   <Label>Country</Label>
                   <Input type="text" value="Kazakhstan" />
                 </div>
-
                 <div>
                   <Label>City/State</Label>
                   <Input type="text" value="Astana, Akmola Region" />
                 </div>
-
                 <div>
                   <Label>Postal Code</Label>
                   <Input type="text" value="010000" />
                 </div>
-
                 <div>
                   <Label>IIN (Individual ID)</Label>
                   <Input type="text" value="850417301299" />
                 </div>
               </div>
             </div>
-
             <div className="flex items-center gap-3 px-2 mt-6 lg:justify-end">
               <Button size="sm" variant="outline" onClick={closeModal}>
                 Close

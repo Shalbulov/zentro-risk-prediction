@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useModal } from "../../hooks/useModal";
 import { Modal } from "../ui/modal";
 import Button from "../ui/button/Button";
@@ -8,36 +8,97 @@ import { FiEdit, FiCalendar, FiPhone, FiMapPin, FiUser, FiShield, FiClock, FiLog
 
 export default function UserMetaCard() {
   const { isOpen, openModal, closeModal } = useModal();
-  const [userData, setUserData] = useState({
-    firstName: "Admin",
-    lastName: "Nurtayeva",
-    phone: "+7 707 845 22 91",
-    bio: "UX/UI Designer",
-    birthDate: "",
-    city: "Astana",
-    country: "Kazakhstan",
-    role: "UX/UI Designer",
-    status: "Active",
-    registrationDate: "2024-11-10",
-    lastActivity: "2025-06-17 19:45",
-    loginCount: 238
-  });
+  const userId = 1; // Поставь реальный id пользователя из auth, если будет
 
-  const handleSave = () => {
-    // In a real app, you would save to API here
-    console.log("Saved changes:", userData);
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Загрузка профиля из API
+  useEffect(() => {
+    fetch(`/api/users/${userId}`)
+      .then(res => res.json())
+      .then(data => {
+        setUserData({
+          firstName: data.first_name || "",
+          lastName: data.last_name || "",
+          phone: data.phone || "",
+          bio: data.role || "",
+          city: data.location ? data.location.split(",")[0].trim() : "",
+          country: data.location ? (data.location.split(",")[1]?.trim() || "") : "",
+          role: data.role || "",
+          status: data.account_status || "",
+          registrationDate: data.registration_date ? data.registration_date.split("T")[0] : "",
+          lastActivity: data.last_activity ? data.last_activity.split(".")[0].replace("T", " ") : "",
+          loginCount: data.login_count || 0,
+          avatar: data.avatar_url || "",
+          email: data.email || "",
+          birthDate: data.birth_date || "", // если добавишь в БД
+        });
+        setLoading(false);
+      });
+  }, [userId]);
+
+  if (loading || !userData) return <div>Загрузка...</div>;
+
+  const handleSave = async () => {
+    const location = `${userData.city}, ${userData.country}`;
+    const updatedProfile = {
+      first_name: userData.firstName,
+      last_name: userData.lastName,
+      phone: userData.phone,
+      role: userData.bio,
+      location: location,
+      account_status: userData.status,
+      registration_date: userData.registrationDate,
+      last_activity: userData.lastActivity,
+      login_count: userData.loginCount,
+      avatar_url: userData.avatar,
+      email: userData.email,
+      // birth_date: userData.birthDate, // если появится в БД
+    };
+
+    await fetch(`/api/users/${userId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedProfile),
+    });
     closeModal();
+    // Подгрузи актуальные данные из API
+    setLoading(true);
+    fetch(`/api/users/${userId}`)
+      .then(res => res.json())
+      .then(data => {
+        setUserData({
+          firstName: data.first_name || "",
+          lastName: data.last_name || "",
+          phone: data.phone || "",
+          bio: data.role || "",
+          city: data.location ? data.location.split(",")[0].trim() : "",
+          country: data.location ? (data.location.split(",")[1]?.trim() || "") : "",
+          role: data.role || "",
+          status: data.account_status || "",
+          registrationDate: data.registration_date ? data.registration_date.split("T")[0] : "",
+          lastActivity: data.last_activity ? data.last_activity.split(".")[0].replace("T", " ") : "",
+          loginCount: data.login_count || 0,
+          avatar: data.avatar_url || "",
+          email: data.email || "",
+          birthDate: data.birth_date || "",
+        });
+        setLoading(false);
+      });
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setUserData(prev => ({ ...prev, [name]: value }));
+    setUserData((prev: any) => ({ ...prev, [name]: value }));
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      // In a real app, you would upload the file
-      console.log("New avatar selected:", e.target.files[0]);
+      // В реальном проекте: сначала загрузи файл на сервер, получи url, сохрани url в avatar
+      // Здесь просто подставь локальный blob или тестовый url
+      const url = URL.createObjectURL(e.target.files[0]);
+      setUserData((prev: any) => ({ ...prev, avatar: url }));
     }
   };
 
@@ -49,7 +110,7 @@ export default function UserMetaCard() {
             <div className="relative group">
               <div className="w-20 h-20 overflow-hidden border-2 border-gray-200 rounded-full dark:border-gray-700">
                 <img 
-                  src="/images/user/owner.png" 
+                  src={userData.avatar || "/images/user/owner.png"} 
                   alt="user" 
                   className="object-cover w-full h-full"
                 />
@@ -71,11 +132,11 @@ export default function UserMetaCard() {
               </h4>
               <div className="flex flex-col items-center gap-1 text-center xl:flex-row xl:gap-3 xl:text-left">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {userData.role}
+                  {userData.bio}
                 </p>
                 <div className="hidden h-3.5 w-px bg-gray-300 dark:bg-gray-700 xl:block"></div>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {userData.city}, {userData.country}
+                  {userData.city}{userData.country ? `, ${userData.country}` : ""}
                 </p>
               </div>
             </div>
@@ -115,7 +176,7 @@ export default function UserMetaCard() {
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Location</p>
               <p className="text-gray-800 dark:text-white/90">
-                {userData.city}, {userData.country}
+                {userData.city}{userData.country ? `, ${userData.country}` : ""}
               </p>
             </div>
           </div>
@@ -178,7 +239,7 @@ Your status determines access to functionality. In case of blocking - contact su
               Update your details to keep your profile up-to-date.
             </p>
           </div>
-          <form className="flex flex-col">
+          <form className="flex flex-col" onSubmit={e => { e.preventDefault(); handleSave(); }}>
             <div className="custom-scrollbar h-[450px] overflow-y-auto px-2 pb-3">
               <div className="grid grid-cols-1 gap-x-6 gap-y-5 lg:grid-cols-2">
                 <div className="col-span-2 lg:col-span-1">
@@ -256,7 +317,7 @@ Your status determines access to functionality. In case of blocking - contact su
               <Button size="sm" variant="outline" onClick={closeModal}>
                 Cancel
               </Button>
-              <Button size="sm" onClick={handleSave}>
+              <Button size="sm" type="submit">
                 Save Changes
               </Button>
             </div>
