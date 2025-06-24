@@ -131,7 +131,7 @@ export default function RecentReports() {
               placeholder="Search reports..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:ring-blue-600 transition-all"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:ring-green-600 transition-all"
             />
             <svg
               className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500"
@@ -154,7 +154,7 @@ export default function RecentReports() {
             <select
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value)}
-              className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:ring-blue-600 appearance-none bg-no-repeat bg-[right_0.5rem_center] bg-[length:1.5em]"
+              className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:ring-green-600 appearance-none bg-no-repeat bg-[right_0.5rem_center] bg-[length:1.5em]"
             >
               {statusOptions.map(option => (
                 <option key={option.value} value={option.value}>
@@ -180,7 +180,7 @@ export default function RecentReports() {
           <CSVLink 
             data={filtered} 
             filename="BI_Reports.csv" 
-            className="w-full sm:w-auto px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />

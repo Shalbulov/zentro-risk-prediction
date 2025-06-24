@@ -1,4 +1,3 @@
-// server.js
 import dotenv from "dotenv";
 dotenv.config();
 import csv from 'csv-parser'; 
@@ -9,11 +8,19 @@ import path from "path";
 import pool from "./db.js";
 import authRoutes from "./routes/auth.js";
 import nodemailer from "nodemailer";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 
+// First create the app instance
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-app.use(cors());
+// Then configure CORS
+app.use(cors({
+  origin: "http://localhost:5173", // Your frontend URL
+  credentials: true
+}));
+
 app.use(express.json());
 
 // ✅ Тест подключения к базе
@@ -28,9 +35,335 @@ app.get("/api/test-db", async (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+// =============== 2FA REGISTRATION ENDPOINTS ===============
 
+// Send verification code
+app.post("/api/auth/send-code", async (req, res) => {
+  const { email } = req.body;
+  
+  try {
+    // Check if user already exists
+    const userExists = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (userExists.rows.length > 0) {
+      return res.status(400).json({ success: false, message: "User already exists" });
+    }
+
+    // Generate 6-digit code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiryTime = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiry
+
+    // Store/update verification code
+    await pool.query(
+      `INSERT INTO verification_codes (email, code, expires_at) 
+       VALUES ($1, $2, $3)
+       ON CONFLICT (email) 
+       DO UPDATE SET code = $2, expires_at = $3, created_at = NOW()`,
+      [email, verificationCode, expiryTime]
+    );
+
+    // Send email (configure your nodemailer transport as needed)
+    const transporter = nodemailer.createTransport({
+      service: "Gmail",
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"Your App" <${process.env.MAIL_USER}>`,
+      to: email,
+      subject: "Your Verification Code",
+      text: `Your verification code is: ${verificationCode}`,
+      html: `<p>Your verification code is: <strong>${verificationCode}</strong></p>`,
+    });
+
+    res.status(200).json({ 
+      success: true,
+      message: "Verification code sent" 
+    });
+  } catch (err) {
+    console.error("Error sending verification code:", err);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to send verification code" 
+    });
+  }
+});
+
+// In your server.js
+app.post("/api/auth/verify-code", async (req, res) => {
+  const { firstName, lastName, email, password, verificationCode } = req.body;
+  
+  try {
+    // 1. Verify the code first
+    const codeResult = await pool.query(
+      `SELECT * FROM verification_codes 
+       WHERE email = $1 AND code = $2 AND expires_at > NOW()`,
+      [email, verificationCode]
+    );
+
+    if (codeResult.rows.length === 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid or expired verification code" 
+      });
+    }
+
+    // 2. Check if user already exists (double-check)
+    const userExists = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (userExists.rows.length > 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: "User already exists" 
+      });
+    }
+
+    // 3. Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // 4. Create user
+    const newUser = await pool.query(
+      `INSERT INTO users 
+       (first_name, last_name, email, password, is_verified) 
+       VALUES ($1, $2, $3, $4, true)
+       RETURNING id, first_name, last_name, email`,
+      [firstName, lastName, email, hashedPassword]
+    );
+
+    // 5. Clean up verification code
+    await pool.query("DELETE FROM verification_codes WHERE email = $1", [email]);
+
+    // 6. Return success
+    res.status(201).json({ 
+      success: true,
+      message: "Registration successful",
+      user: newUser.rows[0]
+    });
+
+  } catch (err) {
+    console.error("Registration error:", err);
+    res.status(500).json({ 
+      success: false,
+      error: "Registration failed",
+      details: err.message
+    });
+  }
+});
+// Login endpoint
+// Add this at the start of your verify-code endpoint
+
+// In your server.js login endpoint
+app.post("/api/auth/signin", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    console.log("Login attempt for:", email); // Add this debug log
+    
+    if (!email || !password) {
+      return res.status(400).json({ 
+        success: false,
+        message: "Email and password are required" 
+      });
+    }
+
+    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    const user = result.rows[0];
+    console.log("Found user:", user); // Debug log
+
+    if (!user) {
+      console.log("No user found with email:", email);
+      return res.status(401).json({ 
+        success: false,
+        message: "Invalid credentials" 
+      });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password);
+    console.log("Password valid:", validPassword); // Debug log
+    
+    if (!validPassword) {
+      return res.status(401).json({ 
+        success: false,
+        message: "Invalid credentials" 
+      });
+    }
+
+    if (!user.is_verified) {
+      return res.status(403).json({ 
+        success: false,
+        message: "Account not verified" 
+      });
+    }
+
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { 
+      expiresIn: "1h" 
+    });
+
+    res.json({ 
+      success: true,
+      token, 
+      user: { 
+        id: user.id,
+        firstName: user.first_name, 
+        lastName: user.last_name, 
+        email: user.email 
+      } 
+    });
+  } catch (err) {
+    console.error("Login error:", err);
+    res.status(500).json({ 
+      success: false,
+      error: "Login failed",
+      details: process.env.NODE_ENV === "development" ? err.message : undefined
+    });
+  }
+});
 // =============== РОУТЫ ПРОФИЛЯ ПОЛЬЗОВАТЕЛЯ ===============
+// Add these to your existing auth routes in server.js
 
+// Generate 2FA code for login
+app.post("/api/auth/send-login-code", async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    // Check if user exists
+    const userResult = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ 
+        success: false,
+        message: "User not found" 
+      });
+    }
+
+    // Generate verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiryTime = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes expiry
+
+    // Store or update verification code
+    await pool.query(
+      `INSERT INTO login_verification_codes (email, code, expires_at) 
+       VALUES ($1, $2, $3)
+       ON CONFLICT (email) 
+       DO UPDATE SET code = $2, expires_at = $3, created_at = NOW()`,
+      [email, verificationCode, expiryTime]
+    );
+
+    // Send email with verification code
+    const transporter = nodemailer.createTransport({
+      service: "Gmail",
+      auth: {
+        user: process.env.MAIL_USER,
+        pass: process.env.MAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"Your App" <${process.env.MAIL_USER}>`,
+      to: email,
+      subject: "Your Login Verification Code",
+      text: `Your verification code is: ${verificationCode}`,
+      html: `<p>Your verification code is: <strong>${verificationCode}</strong></p>`,
+    });
+
+    res.status(200).json({ 
+      success: true,
+      message: "Verification code sent to your email" 
+    });
+  } catch (err) {
+    console.error("Error sending login verification code:", err);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to send verification code" 
+    });
+  }
+});
+
+// Verify login code
+app.post("/api/auth/verify-login", async (req, res) => {
+  const { email, password, verificationCode } = req.body;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // Normalize inputs
+    const normalizedEmail = email.toLowerCase().trim();
+    const cleanCode = verificationCode.toString().trim().replace(/\s/g, '');
+
+    // Verify the code
+    const codeResult = await client.query(
+      `SELECT * FROM login_verification_codes 
+       WHERE email = $1 AND code = $2 AND expires_at > NOW()`,
+      [normalizedEmail, cleanCode]
+    );
+
+    if (codeResult.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ 
+        success: false,
+        message: "Invalid or expired verification code" 
+      });
+    }
+
+    // Verify credentials
+    const userResult = await client.query(
+      "SELECT * FROM users WHERE email = $1", 
+      [normalizedEmail]
+    );
+    
+    const user = userResult.rows[0];
+    
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      await client.query('ROLLBACK');
+      return res.status(401).json({ 
+        success: false,
+        message: "Invalid credentials" 
+      });
+    }
+
+    if (!user.is_verified) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ 
+        success: false,
+        message: "Please verify your email first" 
+      });
+    }
+
+    // Delete used verification code
+    await client.query(
+      "DELETE FROM login_verification_codes WHERE email = $1",
+      [normalizedEmail]
+    );
+
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { 
+      expiresIn: "1h" 
+    });
+
+    await client.query('COMMIT');
+
+    res.json({ 
+      success: true,
+      token, 
+      user: { 
+        id: user.id,
+        firstName: user.first_name, 
+        lastName: user.last_name, 
+        email: user.email 
+      } 
+    });
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error("Login verification error:", err);
+    res.status(500).json({ 
+      success: false,
+      error: "Login verification failed",
+      details: process.env.NODE_ENV === 'development' ? err.message : undefined
+    });
+  } finally {
+    client.release();
+  }
+});
 // Получить профиль пользователя по id
 app.get('/api/users/:id', async (req, res) => {
   const { id } = req.params;
@@ -186,60 +519,110 @@ app.post("/api/events", async (req, res) => {
 });
 // ====================================================================
 app.get('/api/products', async (req, res) => {
+  let client;
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    // Validate query parameters
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 10));
     const search = req.query.search || '';
-    
-    // Read CSV file
-    const results = [];
-    const filePath = path.join(process.cwd(), 'data.csv');
-    
-    await new Promise((resolve, reject) => {
-      fs.createReadStream(filePath)
-        .pipe(csv({
-          separator: ';',
-          headers: ['code', 'description'],
-          skipLines: 1
-        }))
-        .on('data', (data) => {
-          // Filter by search term if provided
-          if (!search || 
-              data.code.toLowerCase().includes(search.toLowerCase()) || 
-              data.description.toLowerCase().includes(search.toLowerCase())) {
-            results.push({
-              code: data.code.trim(),
-              description: data.description.trim()
-            });
-          }
-        })
-        .on('end', resolve)
-        .on('error', reject);
-    });
+    const offset = (page - 1) * limit;
 
-    // Apply pagination
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-    const paginatedProducts = results.slice(startIndex, endIndex);
+    // Get a dedicated client from the pool
+    client = await pool.connect();
+
+    // Build queries with correct column names
+    const baseQuery = 'SELECT _code, _description FROM товары';
+    const countQuery = 'SELECT COUNT(*) FROM товары';
+    let whereClause = '';
+    const queryParams = [];
+
+    // Add search filter if provided
+    if (search) {
+      whereClause = ' WHERE (_code::text ILIKE $1 OR _description ILIKE $1)';
+      queryParams.push(`%${search}%`);
+    }
+
+    // Get total count
+    const countResult = await client.query(
+      `${countQuery}${whereClause}`,
+      queryParams
+    );
+    const totalItems = parseInt(countResult.rows[0].count);
+
+    // Get paginated results - using _code for sorting instead of id
+    const dataQuery = `
+      ${baseQuery}${whereClause}
+      ORDER BY _code  -- Changed from id to _code
+      LIMIT $${queryParams.length + 1}
+      OFFSET $${queryParams.length + 2}
+    `;
+    
+    const dataResult = await client.query(
+      dataQuery,
+      [...queryParams, limit, offset]
+    );
+
+    // Map the underscore columns to the expected format
+    const formattedData = dataResult.rows.map(row => ({
+      code: row._code,
+      description: row._description
+    }));
 
     res.json({
-      data: paginatedProducts,
+      success: true,
+      data: formattedData,
       columns: ['code', 'description'],
       pagination: {
         page,
         limit,
-        totalItems: results.length,
-        totalPages: Math.ceil(results.length / limit),
-        hasNextPage: endIndex < results.length,
-        hasPrevPage: startIndex > 0
+        totalItems,
+        totalPages: Math.ceil(totalItems / limit),
+        hasNextPage: (page * limit) < totalItems,
+        hasPrevPage: page > 1
       }
     });
+
   } catch (error) {
-    console.error('Error processing products request:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Database error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      message: error.message,
+      hint: 'Table товары should have _code and _description columns'
+    });
+  } finally {
+    if (client) client.release();
+  }
+});
+// Test if table exists and show columns
+app.get('/api/check-products-table', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'товары'
+    `);
+    res.json({
+      exists: result.rows.length > 0,
+      columns: result.rows
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
+// Test with simple query
+app.get('/api/test-products-query', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT _code, _description FROM товары LIMIT 5');
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ 
+      error: error.message,
+      hint: 'Check if columns _code and _description exist in товары table'
+    });
+  }
+});
 /**
  * 1) Месячные данные за 2023, 2024 и 2025 годы для трёх метрик:
  */
