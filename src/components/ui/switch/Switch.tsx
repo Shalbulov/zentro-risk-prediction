@@ -14,7 +14,7 @@ export interface SwitchProps {
 }
 
 /**
- * Улучшенный компонент переключателя (Toggle Switch) в стиле Korzinka BI
+ * Улучшенный компонент переключателя (Toggle Switch) в стиле ZENTRO ML
  */
 export default function Switch({
   checked,

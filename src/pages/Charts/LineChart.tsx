@@ -7,8 +7,8 @@ export default function LineChart() {
   return (
     <>
       <PageMeta
-        title="Korzinka BI"
-        description="Korzinka BI"
+        title="ZENTRO ML"
+        description="ZENTRO ML"
       />
       <PageBreadcrumb pageTitle="Line Chart" />
       <div className="space-y-6">

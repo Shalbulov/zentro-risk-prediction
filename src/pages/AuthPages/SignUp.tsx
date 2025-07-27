@@ -6,8 +6,8 @@ export default function SignUp() {
   return (
     <>
       <PageMeta
-        title="Korzinka BI"
-        description="Korzinka BI"
+        title="ZENTRO ML"
+        description="ZENTRO ML"
       />
       <AuthLayout>
         <SignUpForm />

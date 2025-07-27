@@ -1,29 +1,249 @@
 import dotenv from "dotenv";
 dotenv.config();
-import csv from 'csv-parser'; 
 import express from "express";
-import cors from "cors";
+import multer from "multer";
+import csv from 'csv-parser';
 import fs from "fs";
 import path from "path";
+import { v4 as uuidv4 } from "uuid";
+import cors from "cors";
+import axios from 'axios';
 import pool from "./db.js";
 import authRoutes from "./routes/auth.js";
 import nodemailer from "nodemailer";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { fileURLToPath } from 'url';
 
-// First create the app instance
+// Create __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// Then configure CORS
+// Configure middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cors({
-  origin: "http://localhost:5173", // Your frontend URL
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true
 }));
 
-app.use(express.json());
+// Set up file upload handling
+const upload = multer({ dest: 'uploads/' });
 
-// ✅ Тест подключения к базе
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    uptime: process.uptime()
+  });
+});
+
+// Batch Scoring Endpoint (with Python ML integration)
+app.post("/api/batch-score", upload.single("file"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "No file uploaded" });
+  }
+
+  const requiredColumns = [
+    'age', 'income', 'loan_amount', 'credit_history',
+    'employment_length', 'debt_to_income'
+  ];
+
+  try {
+    // 1. Validate CSV
+    const validation = await validateCSV(req.file.path, requiredColumns);
+    if (!validation.valid) {
+      cleanupFile(req.file.path);
+      return res.status(400).json({ 
+        error: "Invalid CSV format",
+        details: validation.errors 
+      });
+    }
+
+    // 2. Process and score with Python ML service
+    console.log("⚡ Processing CSV file with ML Python service...");
+    const results = await processCSVFile(req.file.path);
+    
+    // 3. Save results
+    const resultFilename = `scored_${uuidv4()}.csv`;
+    const resultPath = path.join(__dirname, "results", resultFilename);
+    ensureDirectoryExists(path.join(__dirname, "results"));
+    await saveResultsToCSV(results, resultPath);
+
+    // 4. Generate response
+    const highRiskCount = results.filter(r => r.risk_label === "High").length;
+    const mediumRiskCount = results.filter(r => r.risk_label === "Medium").length;
+    
+    cleanupFile(req.file.path);
+    
+    res.json({
+      status: "success",
+      rows_processed: results.length,
+      high_risk: highRiskCount,
+      medium_risk: mediumRiskCount,
+      download_link: `/api/results/${resultFilename}`
+    });
+
+  } catch (error) {
+    console.error("Batch scoring error:", error);
+    if (req.file?.path) cleanupFile(req.file.path);
+    res.status(500).json({ 
+      error: "Batch scoring failed",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// File Download Endpoint
+app.get("/api/results/:filename", (req, res) => {
+  const filePath = path.join(__dirname, "results", req.params.filename);
+  
+  if (fs.existsSync(filePath)) {
+    res.download(filePath, (err) => {
+      if (err) console.error("Download error:", err);
+    });
+  } else {
+    res.status(404).send("File not found");
+  }
+});
+
+// Helper Functions
+async function validateCSV(filePath, requiredColumns) {
+  return new Promise((resolve) => {
+    const found = new Set();
+
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on("headers", headers => headers.forEach(h => found.add(h)))
+      .on("data", () => {})
+      .on("end", () => {
+        const missing = requiredColumns.filter(col => !found.has(col));
+        resolve({
+          valid: missing.length === 0,
+          errors: missing.map(col => `Missing column: ${col}`)
+        });
+      })
+      .on("error", error => resolve({ valid: false, errors: [error.message] }));
+  });
+}
+
+async function processCSVFile(filePath) {
+  const rows = [];
+  return new Promise((resolve, reject) => {
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on("data", row => rows.push(row))
+      .on("end", async () => {
+        try {
+          const scored = await scoreApplicants(rows);
+          resolve(scored);
+        } catch (err) {
+          reject(err);
+        }
+      })
+      .on("error", err => reject(err));
+  });
+}
+
+async function scoreApplicants(applicants) {
+  const features = applicants.map(a => [
+    parseFloat(a.age),
+    parseFloat(a.income),
+    parseFloat(a.loan_amount),
+    parseFloat(a.credit_history),
+    parseFloat(a.employment_length),
+    parseFloat(a.debt_to_income)
+  ]);
+
+  // Call Python ML microservice
+  const response = await axios.post('http://localhost:8000/predict', { features });
+  const probabilities = response.data.probabilities;
+
+  return applicants.map((applicant, i) => {
+    const score = probabilities[i][1];
+    let risk_label = "Low";
+    if (score > 0.7) risk_label = "High";
+    else if (score > 0.4) risk_label = "Medium";
+
+    return {
+      ...applicant,
+      score: score.toFixed(4),
+      risk_label,
+      explanation: generateShapExplanation(applicant)
+    };
+  });
+}
+
+function generateShapExplanation(applicant) {
+  const factors = [
+    { name: "Income", value: applicant.income, impact: (applicant.income / 10000) * 0.3 },
+    { name: "Credit History", value: applicant.credit_history, impact: -(applicant.credit_history / 100) * 0.2 },
+    { name: "Debt Ratio", value: applicant.debt_to_income, impact: -(applicant.debt_to_income / 10) * 0.15 },
+    { name: "Employment Length", value: applicant.employment_length, impact: (applicant.employment_length / 10) * 0.1 }
+  ].sort((a, b) => Math.abs(b.impact) - Math.abs(a.impact));
+
+  return `Key factors: ${factors.slice(0, 2)
+    .map(f => f.name + ' (' + (f.impact > 0 ? '+' : '') + f.impact.toFixed(2) + ')')
+    .join(', ')}`;
+}
+
+async function saveResultsToCSV(data, filePath) {
+  return new Promise((resolve, reject) => {
+    if (!data.length) return reject(new Error("No data to save"));
+
+    const headers = Object.keys(data[0]);
+    let csvContent = headers.join(",") + "\n";
+
+    data.forEach(row => {
+      const vals = headers.map(h => {
+        const v = row[h];
+        if (v == null) return '';
+        if (typeof v === 'string' && (v.includes(',') || v.includes('"'))) {
+          return '"' + v.replace(/"/g, '""') + '"';
+        }
+        return v;
+      });
+      csvContent += vals.join(",") + "\n";
+    });
+
+    fs.writeFile(filePath, csvContent, err =>
+      err ? reject(err) : resolve()
+    );
+  });
+}
+
+function ensureDirectoryExists(dir) {
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+
+function cleanupFile(filePath) {
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+}
+
+// Auth & other routes
+app.use("/api/auth", authRoutes);
+
+// Start Server
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
+
+
+// [Keep all your existing routes and other functionality]
+// Include all your auth routes, profile routes, product routes, etc.
+// They don't need any changes
+app.use("/api/auth", authRoutes);
+
+// Start Server
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
+
+// Your existing database test endpoint
 app.get("/api/test-db", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");

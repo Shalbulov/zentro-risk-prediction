@@ -1,33 +1,26 @@
-import { useEffect, useState } from "react";
-import {
-  ArrowDownIcon,
-  ArrowUpIcon,
-  BoxIconLine,
-  GroupIcon,
-} from "../../icons";
+import { useState, useEffect } from "react";
+import { FiUsers, FiPackage, FiTrendingUp, FiTrendingDown } from "react-icons/fi";
 import Badge from "../ui/badge/Badge";
 
 type Metrics = {
-  customersCount: number;
-  customersChangePercent: number;
-  newCustomersCount: number;
-  newCustomersChangePercent: number;
-  ordersCount: number;
-  ordersChangePercent: number;
-  pendingOrdersCount: number;
-  pendingOrdersChangePercent: number;
+  totalCustomers: number;
+  customerGrowth: number;
+  totalOrders: number;
+  orderGrowth: number;
 };
 
 export default function EcommerceMetrics() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
 
   useEffect(() => {
-    fetch("http://localhost:4000/api/ecommerce/metrics")
-      .then((res) => res.json())
-      .then((data) => setMetrics(data))
-      .catch((err) => {
-        console.error("Failed to fetch ecommerce metrics:", err);
-      });
+    // Mock data - replace with your actual fetch
+    const mockMetrics: Metrics = {
+      totalCustomers: 12543,
+      customerGrowth: 12.5,
+      totalOrders: 8765,
+      orderGrowth: 18.3
+    };
+    setTimeout(() => setMetrics(mockMetrics), 300);
   }, []);
 
   if (!metrics) {
@@ -51,56 +44,44 @@ export default function EcommerceMetrics() {
   }) => {
     const isNegative = percent < 0;
     const badgeColor = isNegative ? "error" : "success";
-    const ArrowIcon = isNegative ? ArrowDownIcon : ArrowUpIcon;
+    const TrendIcon = isNegative ? FiTrendingDown : FiTrendingUp;
 
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
-        <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">
-          {icon}
-        </div>
-        <div className="flex items-end justify-between mt-5">
-          <div>
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              {label}
-            </span>
-            <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
-              {formatNumber(value)}
-            </h4>
+      <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center justify-center w-10 h-10 bg-orange-50 rounded-lg dark:bg-orange-900/20">
+            {icon}
           </div>
-          <Badge color={badgeColor}>
-            <ArrowIcon />
+          <Badge color={badgeColor} className="!px-2 !py-1 text-xs">
+            <TrendIcon className="mr-1" />
             {Math.abs(percent)}%
           </Badge>
+        </div>
+        <div className="mt-3">
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            {label}
+          </span>
+          <h4 className="mt-1 font-bold text-gray-800 text-lg dark:text-white/90">
+            {formatNumber(value)}
+          </h4>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <MetricCard
-        icon={<GroupIcon className="text-gray-800 size-6 dark:text-white/90" />}
-        label="Customers"
-        value={metrics.customersCount}
-        percent={metrics.customersChangePercent}
+        icon={<FiUsers className="text-orange-500 text-lg dark:text-orange-400" />}
+        label="Total Customers"
+        value={metrics.totalCustomers}
+        percent={metrics.customerGrowth}
       />
       <MetricCard
-        icon={<GroupIcon className="text-gray-800 size-6 dark:text-white/90" />}
-        label="New Customers"
-        value={metrics.newCustomersCount}
-        percent={metrics.newCustomersChangePercent}
-      />
-      <MetricCard
-        icon={<BoxIconLine className="text-gray-800 size-6 dark:text-white/90" />}
-        label="Orders"
-        value={metrics.ordersCount}
-        percent={metrics.ordersChangePercent}
-      />
-      <MetricCard
-        icon={<BoxIconLine className="text-gray-800 size-6 dark:text-white/90" />}
-        label="Pending Orders"
-        value={metrics.pendingOrdersCount}
-        percent={metrics.pendingOrdersChangePercent}
+        icon={<FiPackage className="text-orange-500 text-lg dark:text-orange-400" />}
+        label="Total Orders"
+        value={metrics.totalOrders}
+        percent={metrics.orderGrowth}
       />
     </div>
   );

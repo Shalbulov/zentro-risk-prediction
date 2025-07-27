@@ -1,283 +1,483 @@
-import { useState, useMemo } from "react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableRow,
-} from "../ui/table";
+import React, { useState } from "react";
+import { FiUpload, FiDownload, FiCheckCircle, FiAlertCircle, FiX } from "react-icons/fi";
+import { FaShieldAlt } from "react-icons/fa";
+import Papa from "papaparse";
 import Badge from "../ui/badge/Badge";
-import { CSVLink } from "react-csv";
 
-interface Report {
-  id: number;
-  name: string;
-  scope: string;
-  metric: string;
-  date: string;
-  status: "Delivered" | "Pending" | "Canceled";
-  image: string;
-}
+// ProgressBar component remains the same
+type ProgressBarProps = {
+  value: number;
+  color?: 'orange' | 'success' | 'error';
+  className?: string;
+  barClassName?: string;
+};
 
-// Expanded dataset with 15 records
-const initialData: Report[] = [
-  { id: 1, name: "Daily Sales Summary", scope: "All Stores", metric: "Sales", date: "12 Jun 2025", status: "Delivered", image: "/images/reports/sales.svg" },
-  { id: 2, name: "Inventory Turnover", scope: "Beverages", metric: "Inventory", date: "12 Jun 2025", status: "Pending", image: "/images/reports/inventory.svg" },
-  { id: 3, name: "Monthly Profit Margin", scope: "Region North", metric: "Finance", date: "01 Jun 2025", status: "Delivered", image: "/images/reports/finance.svg" },
-  { id: 4, name: "KPI Dashboard", scope: "Region West", metric: "KPI", date: "11 Jun 2025", status: "Canceled", image: "/images/reports/kpi.svg" },
-  { id: 5, name: "Traffic & Conversion", scope: "All Stores", metric: "Marketing", date: "10 Jun 2025", status: "Delivered", image: "/images/reports/marketing.svg" },
-  { id: 6, name: "Customer Retention", scope: "Loyalty", metric: "CRM", date: "09 Jun 2025", status: "Pending", image: "/images/reports/crm.svg" },
-  { id: 7, name: "Supply Chain", scope: "Logistics", metric: "Operations", date: "08 Jun 2025", status: "Delivered", image: "/images/reports/operations.svg" },
-  { id: 8, name: "Employee Performance", scope: "HR", metric: "Productivity", date: "07 Jun 2025", status: "Pending", image: "/images/reports/hr.svg" },
-  { id: 9, name: "Website Analytics", scope: "Digital", metric: "Traffic", date: "06 Jun 2025", status: "Delivered", image: "/images/reports/digital.svg" },
-  { id: 10, name: "Social Media Impact", scope: "Marketing", metric: "Engagement", date: "05 Jun 2025", status: "Canceled", image: "/images/reports/social.svg" },
-  { id: 11, name: "Quarterly Forecast", scope: "All Departments", metric: "Projections", date: "04 Jun 2025", status: "Delivered", image: "/images/reports/forecast.svg" },
-  { id: 12, name: "Customer Satisfaction", scope: "Service", metric: "NPS", date: "03 Jun 2025", status: "Pending", image: "/images/reports/nps.svg" },
-  { id: 13, name: "Product Returns", scope: "Quality", metric: "Defects", date: "02 Jun 2025", status: "Delivered", image: "/images/reports/quality.svg" },
-  { id: 14, name: "Market Share", scope: "Competition", metric: "Analysis", date: "01 Jun 2025", status: "Canceled", image: "/images/reports/market.svg" },
-  { id: 15, name: "Budget Variance", scope: "Finance", metric: "Accounting", date: "31 May 2025", status: "Pending", image: "/images/reports/budget.svg" },
+const ProgressBar = ({ 
+  value, 
+  color = 'orange', 
+  className = '', 
+  barClassName = '' 
+}: ProgressBarProps) => {
+  const width = Math.min(100, Math.max(0, value));
+  const colorClasses = {
+    orange: 'bg-orange-500',
+    success: 'bg-green-500',
+    error: 'bg-red-500',
+  };
+
+  return (
+    <div className={`w-full h-2 bg-gray-200 rounded-full overflow-hidden dark:bg-gray-700 ${className}`}>
+      <div
+        className={`h-full transition-all duration-300 ${colorClasses[color]} ${barClassName}`}
+        style={{ width: `${width}%` }}
+        role="progressbar"
+        aria-valuenow={width}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      />
+    </div>
+  );
+};
+
+// Main component
+type FileStatus = 'empty' | 'uploaded' | 'validating' | 'valid' | 'invalid' | 'scoring' | 'complete';
+type ValidationError = { row?: number; field: string; message: string };
+
+export default function BatchScoringUpload() {
+  const [file, setFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<FileStatus>('empty');
+  const [errors, setErrors] = useState<ValidationError[]>([]);
+  const [previewData, setPreviewData] = useState<any[]>([]);
+  const [processedData, setProcessedData] = useState<any[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [stats, setStats] = useState<{total: number; highRisk: number; mediumRisk: number} | null>(null);
+
+const requiredColumns = [
+  { name: 'age', type: 'number' },
+  { name: 'income', type: 'number' },
+  { name: 'loan_amount', type: 'number' },
+  { name: 'credit_history', type: 'number' },
+  { name: 'employment_length', type: 'number' },
+  { name: 'debt_to_income', type: 'number' }
 ];
 
-export default function RecentReports() {
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("All");
-  const [sortKey, setSortKey] = useState<keyof Report | null>(null);
-  const [sortAsc, setSortAsc] = useState(true);
-  const [page, setPage] = useState(1);
-  const pageSize = 5;
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const uploadedFile = e.target.files[0];
+      
+      // Validate file size
+      if (uploadedFile.size > 10 * 1024 * 1024) { // 10MB limit
+        setErrors([{ field: 'file', message: 'File size exceeds 10MB limit' }]);
+        setStatus('invalid');
+        return;
+      }
 
-  // Status options with icons
-  const statusOptions = [
-    { value: "All", label: "All Statuses", icon: "list" },
-    { value: "Delivered", label: "Delivered", icon: "check-circle" },
-    { value: "Pending", label: "Pending", icon: "clock" },
-    { value: "Canceled", label: "Canceled", icon: "x-circle" }
-  ];
-
-  const renderIcon = (iconName: string) => {
-    switch (iconName) {
-      case "list":
-        return (
-          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        );
-      case "check-circle":
-        return (
-          <svg className="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        );
-      case "clock":
-        return (
-          <svg className="w-4 h-4 mr-2 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        );
-      case "x-circle":
-        return (
-          <svg className="w-4 h-4 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-14 0 9 9 0 0114 0z" />
-          </svg>
-        );
-      default:
-        return null;
+      setFile(uploadedFile);
+      setStatus('uploaded');
+      setErrors([]);
+      
+      // Parse CSV for preview
+      Papa.parse(uploadedFile, {
+        header: true,
+        preview: 5,
+        complete: (results) => {
+          setPreviewData(results.data);
+          validateFile(results.meta.fields || []);
+        },
+        error: (error) => {
+          setErrors([{ field: 'file', message: error.message }]);
+          setStatus('invalid');
+        }
+      });
     }
   };
 
-  // Filter and sort data
-  const filtered = useMemo(() => {
-    let data = initialData.filter(r =>
-      r.name.toLowerCase().includes(search.toLowerCase()) ||
-      r.scope.toLowerCase().includes(search.toLowerCase())
-    );
-    if (statusFilter !== "All") {
-      data = data.filter(r => r.status === statusFilter);
-    }
-    if (sortKey) {
-      data = [...data].sort((a, b) => {
-        const aVal = a[sortKey] as string;
-        const bVal = b[sortKey] as string;
-        return sortAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-      });
-    }
-    return data;
-  }, [search, statusFilter, sortKey, sortAsc]);
-
-  const totalPages = Math.ceil(filtered.length / pageSize);
-  const pageData = filtered.slice((page - 1) * pageSize, page * pageSize);
-
-  function toggleSort(key: keyof Report) {
-    if (sortKey === key) {
-      setSortAsc(!sortAsc);
-    } else {
-      setSortKey(key);
-      setSortAsc(true);
-    }
+const validateFile = (columns: string[], sampleData: any) => {
+  setStatus('validating');
+  
+  // Check for missing columns
+  const missingColumns = requiredColumns.filter(col => 
+    !columns.includes(col.name)
+  );
+  
+  if (missingColumns.length > 0) {
+    setErrors(missingColumns.map(col => ({
+      field: col.name,
+      message: `Required column missing: ${col.name}`
+    })));
+    setStatus('invalid');
+    return;
   }
+  
+  // Check data types in the first row
+  const typeErrors = requiredColumns.filter(col => {
+    const value = sampleData[0][col.name];
+    return isNaN(value) && col.type === 'number';
+  });
+  
+  if (typeErrors.length > 0) {
+    setErrors(typeErrors.map(col => ({
+      field: col.name,
+      message: `Column ${col.name} must contain numeric values`
+    })));
+    setStatus('invalid');
+  } else {
+    setStatus('valid');
+  }
+};
+
+
+  const processFile = async () => {
+    if (!file) return;
+    
+    setStatus('scoring');
+    setProgress(0);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Track upload progress
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/batch-score');
+      
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = Math.min(95, (event.loaded / event.total) * 100);
+          setProgress(percentComplete);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const response = JSON.parse(xhr.responseText);
+          setProgress(100);
+          setStats({
+            total: response.rows_processed,
+            highRisk: response.high_risk,
+            mediumRisk: response.medium_risk
+          });
+          
+          // Fetch the processed data
+          fetchResults(response.download_link);
+        } else {
+          setErrors([{ field: 'processing', message: xhr.responseText || 'Processing failed' }]);
+          setStatus('invalid');
+          setProgress(0);
+        }
+      };
+
+      xhr.onerror = () => {
+        setErrors([{ field: 'network', message: 'Network error occurred' }]);
+        setStatus('invalid');
+        setProgress(0);
+      };
+
+      xhr.send(formData);
+    } catch (error) {
+      setErrors([{ field: 'processing', message: error.message }]);
+      setStatus('invalid');
+      setProgress(0);
+    }
+  };
+
+  const fetchResults = async (downloadLink: string) => {
+    try {
+      const response = await fetch(downloadLink);
+      if (!response.ok) throw new Error('Failed to fetch results');
+      
+      const text = await response.text();
+      Papa.parse(text, {
+        header: true,
+        complete: (results) => {
+          setProcessedData(results.data);
+          setStatus('complete');
+        },
+        error: (error) => {
+          throw error;
+        }
+      });
+    } catch (error) {
+      setErrors([{ field: 'results', message: error.message }]);
+      setStatus('invalid');
+    }
+  };
+
+  const resetUpload = () => {
+    setFile(null);
+    setStatus('empty');
+    setPreviewData([]);
+    setProcessedData([]);
+    setErrors([]);
+    setProgress(0);
+    setStats(null);
+  };
+
+  const downloadResults = () => {
+    const csv = Papa.unparse(processedData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `scored_${file?.name || 'results.csv'}`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
-      <div className="flex flex-col gap-4 mb-6">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-          Recent BI Reports
-        </h3>
-        
-        <div className="flex flex-col sm:flex-row gap-3 w-full">
-          {/* Search Input */}
-          <div className="relative flex-grow">
-            <input
-              type="text"
-              placeholder="Search reports..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:ring-green-600 transition-all"
-            />
-            <svg
-              className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
+    <div className="space-y-6">
+      {/* Upload Card */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
+              Batch Credit Scoring
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Upload applicant data for risk assessment
+            </p>
           </div>
-          
-          {/* Status Filter */}
-          <div className="relative w-full sm:w-48">
-            <select
-              value={statusFilter}
-              onChange={e => setStatusFilter(e.target.value)}
-              className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-green-500 dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:ring-green-600 appearance-none bg-no-repeat bg-[right_0.5rem_center] bg-[length:1.5em]"
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={resetUpload}
+              className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
             >
-              {statusOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <div className="absolute left-3 top-2.5">
-              {renderIcon(statusOptions.find(opt => opt.value === statusFilter)?.icon || "list")}
-            </div>
-            <svg
-              className="absolute right-3 top-2.5 h-4 w-4 text-gray-400 pointer-events-none"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+              <FiX className="text-lg" />
+            </button>
           </div>
-
-          {/* Export Button */}
-          <CSVLink 
-            data={filtered} 
-            filename="BI_Reports.csv" 
-            className="w-full sm:w-auto px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            <span className="whitespace-nowrap">Export CSV</span>
-          </CSVLink>
         </div>
-      </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader className="border-b dark:border-gray-800">
-            <TableRow>
-              {['name','scope','metric','date','status'].map(col => (
-                <TableCell
-                  key={col}
-                  isHeader
-                  className="py-3 font-medium text-gray-500 text-xs dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/50"
-                  onClick={() => toggleSort(col as keyof Report)}
+        {status === 'empty' ? (
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center dark:border-gray-700">
+            <div className="flex flex-col items-center justify-center space-y-3">
+              <FiUpload className="h-10 w-10 text-gray-400" />
+              <label className="cursor-pointer">
+                <span className="text-orange-500 hover:text-orange-600 font-medium">
+                  Select CSV file
+                </span>
+                <input 
+                  type="file" 
+                  accept=".csv" 
+                  className="hidden" 
+                  onChange={handleFileUpload}
+                />
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                or drag and drop file here
+              </p>
+              <a 
+                href="/templates/credit_applicants_template.csv" 
+                download
+                className="text-xs text-orange-500 hover:underline"
+              >
+                Download CSV template
+              </a>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg dark:bg-gray-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+                  <FiUpload className="h-5 w-5 text-orange-500 dark:text-orange-400" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-800 dark:text-white/90">
+                    {file?.name}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {(file?.size || 0) > 1024 * 1024 
+                      ? `${((file?.size || 0) / 1024 / 1024).toFixed(1)} MB` 
+                      : `${Math.round((file?.size || 0) / 1024)} KB`}
+                  </p>
+                </div>
+              </div>
+              <Badge 
+                color={
+                  status === 'valid' ? 'success' : 
+                  status === 'invalid' ? 'error' : 'orange'
+                }
+              >
+                {status === 'uploaded' && 'Uploaded'}
+                {status === 'validating' && 'Validating...'}
+                {status === 'valid' && 'Valid'}
+                {status === 'invalid' && 'Invalid'}
+                {status === 'scoring' && 'Processing'}
+                {status === 'complete' && 'Complete'}
+              </Badge>
+            </div>
+
+            {status === 'invalid' && (
+              <div className="p-3 bg-red-50 rounded-lg dark:bg-red-900/20">
+                <h4 className="flex items-center gap-2 font-medium text-red-700 dark:text-red-400">
+                  <FiAlertCircle className="text-lg" />
+                  Validation Errors
+                </h4>
+                <ul className="mt-2 space-y-1 text-sm text-red-600 dark:text-red-400">
+                  {errors.map((error, idx) => (
+                    <li key={idx}>{error.message}</li>
+                  ))}
+                </ul>
+                <button
+                  onClick={resetUpload}
+                  className="w-full mt-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
                 >
-                  <div className="flex items-center gap-1">
-                    {col.charAt(0).toUpperCase() + col.slice(1)}
-                    {sortKey === col && (
-                      <span className="text-gray-400">
-                        {sortAsc ? '↑' : '↓'}
-                      </span>
-                    )}
-                  </div>
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody className="divide-y dark:divide-gray-800">
-            {pageData.map(report => (
-              <TableRow key={report.id} className="hover:bg-gray-50 dark:hover:bg-white/5">
-                <TableCell className="py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 flex-shrink-0">
-                      <img src={report.image} alt={report.name} className="h-8 w-8 object-contain" />
-                    </div>
-                    <span className="font-medium text-gray-800 dark:text-white/90 text-sm">
-                      {report.name}
+                  Try Again
+                </button>
+              </div>
+            )}
+
+            {status === 'valid' && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-gray-800 dark:text-white/90">
+                  Data Preview (first 5 rows)
+                </h4>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+                    <thead className="bg-gray-50 dark:bg-gray-800">
+                      <tr>
+                        {previewData[0] && Object.keys(previewData[0]).map((key) => (
+                          <th 
+                            key={key}
+                            className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                          >
+                            {key}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                      {previewData.map((row, rowIdx) => (
+                        <tr key={rowIdx}>
+                          {Object.values(row).map((value: any, colIdx) => (
+                            <td 
+                              key={colIdx}
+                              className="px-3 py-2 text-sm text-gray-800 dark:text-gray-200"
+                            >
+                              {value}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <button
+                  onClick={processFile}
+                  disabled={status === 'scoring'}
+                  className={`w-full py-2 ${status === 'scoring' ? 'bg-orange-400' : 'bg-orange-500 hover:bg-orange-600'} text-white rounded-lg transition-colors`}
+                >
+                  {status === 'scoring' ? 'Processing...' : 'Process File'}
+                </button>
+              </div>
+            )}
+
+            {(status === 'scoring' || status === 'complete') && (
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="text-gray-700 dark:text-gray-300">
+                      {status === 'scoring' ? 'Processing...' : 'Processing complete'}
+                    </span>
+                    <span className="font-medium">
+                      {progress.toFixed(0)}%
                     </span>
                   </div>
-                </TableCell>
-                <TableCell className="py-3 text-gray-500 text-sm dark:text-gray-400">
-                  {report.scope}
-                </TableCell>
-                <TableCell className="py-3 text-gray-500 text-sm dark:text-gray-400">
-                  {report.metric}
-                </TableCell>
-                <TableCell className="py-3 text-gray-500 text-sm dark:text-gray-400">
-                  {report.date}
-                </TableCell>
-                <TableCell className="py-3 text-gray-500 text-sm dark:text-gray-400">
-                  <Badge size="sm" color={
-                    report.status === 'Delivered' ? 'success' : report.status === 'Pending' ? 'warning' : 'error'
-                  }>
-                    {report.status}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                  <ProgressBar 
+                    value={progress} 
+                    color={status === 'complete' ? 'success' : 'orange'}
+                  />
+                </div>
+
+                {status === 'complete' && stats && (
+                  <div className="p-3 bg-green-50 rounded-lg dark:bg-green-900/20">
+                    <div className="flex items-center gap-3 mb-3">
+                      <FiCheckCircle className="text-green-500 dark:text-green-400 text-lg" />
+                      <div>
+                        <h4 className="font-medium text-green-700 dark:text-green-400">
+                          Scoring Complete
+                        </h4>
+                        <p className="text-sm text-green-600 dark:text-green-500">
+                          {stats.total} records processed
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <div className="p-2 bg-red-50 rounded dark:bg-red-900/20">
+                        <p className="text-sm font-medium text-red-700 dark:text-red-400">High Risk</p>
+                        <p className="text-lg font-bold">{stats.highRisk}</p>
+                      </div>
+                      <div className="p-2 bg-yellow-50 rounded dark:bg-yellow-900/20">
+                        <p className="text-sm font-medium text-yellow-700 dark:text-yellow-400">Medium Risk</p>
+                        <p className="text-lg font-bold">{stats.mediumRisk}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={downloadResults}
+                      className="w-full py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <FiDownload />
+                      Download Results
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Pagination */}
-      <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
-        <span className="text-sm text-gray-500 dark:text-gray-400 w-full sm:w-auto text-center sm:text-left">
-          Showing {(page - 1) * pageSize + 1}-{Math.min(page * pageSize, filtered.length)} of {filtered.length} reports
-        </span>
-        <div className="flex gap-2 w-full sm:w-auto justify-center sm:justify-start">
-          <button 
-            onClick={() => setPage(p => Math.max(1, p - 1))} 
-            disabled={page === 1} 
-            className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50 dark:text-white flex items-center gap-1 flex-1 sm:flex-none justify-center"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            <span className="sm:hidden">Prev</span>
-            <span className="hidden sm:inline">Previous</span>
-          </button>
-          <button 
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))} 
-            disabled={page === totalPages} 
-            className="px-3.5 py-1.5 border border-gray-300 rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50 dark:text-white flex items-center gap-1 flex-1 sm:flex-none justify-center"
-          >
-            <span className="sm:hidden">Next</span>
-            <span className="hidden sm:inline">Next</span>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
+      {/* Requirements Card */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 rounded-lg bg-orange-50 dark:bg-orange-900/20">
+            <FaShieldAlt className="h-5 w-5 text-orange-500 dark:text-orange-400" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-800 dark:text-white/90">
+              File Requirements
+            </h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Ensure your CSV meets these specifications
+            </p>
+          </div>
         </div>
+
+        <ul className="space-y-3 text-sm text-gray-700 dark:text-gray-300">
+          <li className="flex items-start gap-2">
+            <div className="mt-0.5 w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center">
+              <span className="text-white text-xs">1</span>
+            </div>
+            <span>
+              <strong>Required columns:</strong> {requiredColumns.join(', ')}
+            </span>
+          </li>
+          <li className="flex items-start gap-2">
+            <div className="mt-0.5 w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center">
+              <span className="text-white text-xs">2</span>
+            </div>
+            <span>
+              <strong>Max file size:</strong> 10MB (~10,000 records)
+            </span>
+          </li>
+          <li className="flex items-start gap-2">
+            <div className="mt-0.5 w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center">
+              <span className="text-white text-xs">3</span>
+            </div>
+            <span>
+              <strong>Supported formats:</strong> CSV (UTF-8 encoded)
+            </span>
+          </li>
+          <li className="flex items-start gap-2">
+            <div className="mt-0.5 w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center">
+              <span className="text-white text-xs">4</span>
+            </div>
+            <span>
+              <strong>Processing time:</strong> ~1 second per 100 records
+            </span>
+          </li>
+        </ul>
       </div>
     </div>
   );

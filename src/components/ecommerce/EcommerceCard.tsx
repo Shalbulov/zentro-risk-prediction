@@ -1,231 +1,420 @@
-import { useState, useEffect } from "react";
-import {
-  ArrowUpIcon,
-  GroupIcon,
-  MoreDotIcon,
-} from "../../icons";
+import { useState } from "react";
+import { 
+  FiUpload, 
+  FiDatabase, 
+  FiActivity, 
+  FiCheckCircle, 
+  FiMoreVertical,
+  FiRefreshCw,
+  FiAlertTriangle,
+  FiDownload,
+  FiTrash2
+} from "react-icons/fi";
 import Badge from "../ui/badge/Badge";
-import Chart from "react-apexcharts";
-import { ApexOptions } from "apexcharts";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
+import ProgressBar from "../ui/progress/ProgressBar";
 
-type Metrics = {
-  profit: number;
-  monthlyTargetPercent: number;
-  chartProgressPercent: number;
-  bottomPanel: {
-    target: number;
-    revenue: number;
-    today: number;
+type ModelVersion = {
+  id: string;
+  name: string;
+  algorithm: string;
+  datasetVersion: string;
+  metrics: {
+    auc: number;
+    accuracy: number;
+    f1: number;
+    precision?: number;
+    recall?: number;
   };
+  status: 'training' | 'success' | 'failed' | 'deploying';
+  timestamp: string;
+  isProduction: boolean;
+  trainingProgress?: number;
 };
 
-export default function EcommerceWithTarget() {
-  const [metrics, setMetrics] = useState<Metrics | null>(null);
+export default function ModelManagementCard() {
+  const [activeTab, setActiveTab] = useState<'datasets' | 'models'>('datasets');
   const [isOpen, setIsOpen] = useState(false);
+  const [isTraining, setIsTraining] = useState(false);
+  const [trainingProgress, setTrainingProgress] = useState(0);
+
+  // Mock data
+  const [datasets, setDatasets] = useState([
+    { version: 'v1.2', rows: 12543, features: 28, uploaded: '2023-05-15', size: '45.2 MB' },
+    { version: 'v1.1', rows: 11200, features: 28, uploaded: '2023-04-10', size: '40.1 MB' },
+    { version: 'v1.0', rows: 9800, features: 25, uploaded: '2023-03-01', size: '35.7 MB' }
+  ]);
+
+  const [models, setModels] = useState<ModelVersion[]>([
+    {
+      id: 'm5',
+      name: 'XGBoost v1.2',
+      algorithm: 'XGBoost',
+      datasetVersion: 'v1.2',
+      metrics: { auc: 0.92, accuracy: 0.88, f1: 0.89, precision: 0.87, recall: 0.91 },
+      status: 'success',
+      timestamp: '2023-05-16 14:30',
+      isProduction: true
+    },
+    {
+      id: 'm4',
+      name: 'LightGBM v1.2',
+      algorithm: 'LightGBM',
+      datasetVersion: 'v1.2',
+      metrics: { auc: 0.91, accuracy: 0.87, f1: 0.88, precision: 0.86, recall: 0.90 },
+      status: 'success',
+      timestamp: '2023-05-16 12:15',
+      isProduction: false
+    },
+    {
+      id: 'm3',
+      name: 'XGBoost v1.1',
+      algorithm: 'XGBoost',
+      datasetVersion: 'v1.1',
+      metrics: { auc: 0.89, accuracy: 0.85, f1: 0.86, precision: 0.84, recall: 0.88 },
+      status: 'success',
+      timestamp: '2023-04-11 09:45',
+      isProduction: false
+    },
+    {
+      id: 'm6',
+      name: 'Neural Net v1.2',
+      algorithm: 'Neural Network',
+      datasetVersion: 'v1.2',
+      metrics: { auc: 0.90, accuracy: 0.86, f1: 0.87, precision: 0.85, recall: 0.89 },
+      status: 'training',
+      timestamp: '2023-05-17 10:20',
+      isProduction: false,
+      trainingProgress: 45
+    }
+  ]);
 
   const toggleDropdown = () => setIsOpen(!isOpen);
   const closeDropdown = () => setIsOpen(false);
 
-  useEffect(() => {
-    fetch("http://localhost:4000/api/ecommerce/metrics")
-      .then((res) => {
-        if (!res.ok) throw new Error("Network response was not ok");
-        return res.json();
-      })
-      .then((data: Metrics) => {
-        setMetrics(data);
-      })
-      .catch((err) => {
-        console.error("Error fetching ecommerce metrics:", err);
-      });
-  }, []);
-
-  if (!metrics) {
-    return (
-      <div className="p-6">
-        <p className="text-center text-gray-500">Loading metrics…</p>
-      </div>
+  const promoteToProduction = (modelId: string) => {
+    setModels(prev => 
+      prev.map(model => ({
+        ...model,
+        isProduction: model.id === modelId,
+        status: model.id === modelId ? 'deploying' : model.status
+      }))
     );
-  }
+    
+    // Simulate deployment completion
+    setTimeout(() => {
+      setModels(prev => 
+        prev.map(model => ({
+          ...model,
+          status: model.id === modelId ? 'success' : model.status
+        }))
+      );
+    }, 2000);
+  };
 
-  const series = [metrics.monthlyTargetPercent];
-  const options: ApexOptions = {
-    colors: ["#629731"],
-    chart: {
-      fontFamily: "Outfit, sans-serif",
-      type: "radialBar",
-      height: 330,
-      sparkline: { enabled: true },
-    },
-    plotOptions: {
-      radialBar: {
-        startAngle: -85,
-        endAngle: 85,
-        hollow: { size: "80%" },
-        track: {
-          background: "#b9bec5",
-          strokeWidth: "100%",
-          margin: 5,
-        },
-        dataLabels: {
-          name: { show: false },
-          value: {
-            fontSize: "36px",
-            fontWeight: "600",
-            offsetY: -40,
-            color: "#51565e",
-            formatter: (val) => `${val}%`,
-          },
-        },
-      },
-    },
-    fill: { type: "solid", colors: ["#629731"] },
-    stroke: { lineCap: "round" },
-    labels: ["Progress"],
+  const deleteModel = (modelId: string) => {
+    if (models.find(m => m.id === modelId)?.isProduction) {
+      alert("Cannot delete production model");
+      return;
+    }
+    setModels(prev => prev.filter(model => model.id !== modelId));
+  };
+
+  const deleteDataset = (version: string) => {
+    if (models.some(m => m.datasetVersion === version)) {
+      alert("Cannot delete dataset used by existing models");
+      return;
+    }
+    setDatasets(prev => prev.filter(d => d.version !== version));
+  };
+
+  const trainNewModel = () => {
+    setIsTraining(true);
+    setTrainingProgress(0);
+    
+    const interval = setInterval(() => {
+      setTrainingProgress(prev => {
+        const newProgress = prev + Math.random() * 10;
+        if (newProgress >= 100) {
+          clearInterval(interval);
+          setIsTraining(false);
+          
+          // Add the new model
+          const newModel: ModelVersion = {
+            id: `m${models.length + 1}`,
+            name: `New Model v1.${datasets.length}`,
+            algorithm: ['XGBoost', 'LightGBM', 'Random Forest'][Math.floor(Math.random() * 3)],
+            datasetVersion: datasets[0].version,
+            metrics: { 
+              auc: 0.85 + Math.random() * 0.1,
+              accuracy: 0.8 + Math.random() * 0.1,
+              f1: 0.82 + Math.random() * 0.1,
+              precision: 0.81 + Math.random() * 0.1,
+              recall: 0.83 + Math.random() * 0.1
+            },
+            status: 'success',
+            timestamp: new Date().toLocaleString(),
+            isProduction: false
+          };
+          
+          setModels(prev => [newModel, ...prev]);
+          return 100;
+        }
+        return newProgress;
+      });
+    }, 500);
+  };
+
+  const uploadDataset = () => {
+    const newVersion = `v1.${datasets.length + 1}`;
+    const newDataset = {
+      version: newVersion,
+      rows: Math.floor(Math.random() * 5000) + 10000,
+      features: 28,
+      uploaded: new Date().toISOString().split('T')[0],
+      size: `${(Math.random() * 10 + 30).toFixed(1)} MB`
+    };
+    setDatasets(prev => [newDataset, ...prev]);
   };
 
   return (
-    <div className="space-y-6">
-      {/* ─────────────────────────────────────────────────── 
-          Карточка 1: Profit
-      ─────────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6">
-        <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl dark:bg-gray-800">
-          <GroupIcon className="text-gray-800 size-6 dark:text-white/90" />
-        </div>
-
-        <div className="flex items-end justify-between mt-5">
+    <div className="space-y-4 md:space-y-6">
+      {/* Model Management Header */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4 md:p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <span className="text-sm text-gray-500 dark:text-gray-400">
-              Profit
-            </span>
-            <h4 className="mt-2 font-bold text-gray-800 text-title-sm dark:text-white/90">
-              ${metrics.profit.toLocaleString()}
-            </h4>
+            <h2 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-white/90">
+              Model Management
+            </h2>
+            <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+              Version control and model lifecycle management
+            </p>
           </div>
-          <Badge color="success">
-            <ArrowUpIcon />
-            14.23%
-          </Badge>
+          <div className="flex items-center gap-2 md:gap-3">
+            <button 
+              onClick={uploadDataset}
+              className="flex items-center gap-1 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 bg-orange-500 text-white text-sm md:text-base rounded-lg hover:bg-orange-600 transition-colors"
+            >
+              <FiUpload className="text-sm md:text-lg" />
+              <span>New Dataset</span>
+            </button>
+            <div className="relative">
+              <button 
+                onClick={toggleDropdown} 
+                className="p-1.5 md:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+              >
+                <FiMoreVertical className="text-gray-500 dark:text-gray-400" />
+              </button>
+              <Dropdown isOpen={isOpen} onClose={closeDropdown} className="w-48 md:w-56">
+                <DropdownItem 
+                  onClick={() => {
+                    closeDropdown();
+                    trainNewModel();
+                  }}
+                  className="flex items-center px-3 py-1.5 md:px-4 md:py-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <FiActivity className="mr-2 text-sm md:text-base" />
+                  <span className="text-sm md:text-base">Train New Model</span>
+                </DropdownItem>
+                <DropdownItem className="flex items-center px-3 py-1.5 md:px-4 md:py-2 hover:bg-gray-100 dark:hover:bg-gray-800">
+                  <FiDatabase className="mr-2 text-sm md:text-base" />
+                  <span className="text-sm md:text-base">View All Versions</span>
+                </DropdownItem>
+                <DropdownItem className="flex items-center px-3 py-1.5 md:px-4 md:py-2 hover:bg-gray-100 dark:hover:bg-gray-800">
+                  <FiDownload className="mr-2 text-sm md:text-base" />
+                  <span className="text-sm md:text-base">Export Data</span>
+                </DropdownItem>
+              </Dropdown>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex mt-4 md:mt-6 border-b border-gray-200 dark:border-gray-800">
+          <button
+            onClick={() => setActiveTab('datasets')}
+            className={`pb-2 md:pb-3 px-3 md:px-4 text-sm md:text-base font-medium transition-colors ${
+              activeTab === 'datasets' 
+                ? 'text-orange-500 border-b-2 border-orange-500' 
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            Datasets
+          </button>
+          <button
+            onClick={() => setActiveTab('models')}
+            className={`pb-2 md:pb-3 px-3 md:px-4 text-sm md:text-base font-medium transition-colors ${
+              activeTab === 'models' 
+                ? 'text-orange-500 border-b-2 border-orange-500' 
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            Model Versions
+          </button>
         </div>
       </div>
 
-      {/* ─────────────────────────────────────────────────── 
-          Карточка 2: Monthly Target
-      ─────────────────────────────────────────────────── */}
-<div className="rounded-2xl border border-gray-200 bg-gray-100 dark:border-gray-800 dark:bg-white/[0.03]">
-  <div className="px-5 pt-5 bg-white shadow-default rounded-2xl pb-11 dark:bg-gray-900 sm:px-6 sm:pt-6">
-    {/* Заголовок и меню */}
-    <div className="flex justify-between">
-      <div>
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">
-          Monthly Target
-        </h3>
-        <p className="mt-1 text-gray-500 text-theme-sm dark:text-gray-400">
-          Target you’ve set for each month
-        </p>
+      {/* Current Production Model Card */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4 md:p-5 dark:border-gray-800 dark:bg-white/[0.03]">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-0">
+          <div>
+            <h3 className="text-base md:text-lg font-semibold text-gray-800 dark:text-white/90">
+              Production Model
+            </h3>
+            <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
+              Currently active model serving predictions
+            </p>
+          </div>
+          {models.some(m => m.status === 'deploying') ? (
+            <Badge color="warning">
+              <FiRefreshCw className="mr-1 animate-spin" />
+              Deploying...
+            </Badge>
+          ) : (
+            <Badge color="success">
+              <FiCheckCircle className="mr-1" />
+              Active
+            </Badge>
+          )}
+        </div>
+
+        {models.filter(m => m.isProduction).map(model => (
+          <div key={model.id} className="mt-3 p-3 md:p-4 bg-orange-50 rounded-lg dark:bg-orange-900/20">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 md:gap-0">
+              <div>
+                <h4 className="font-bold text-gray-800 dark:text-white/90 text-sm md:text-base">{model.name}</h4>
+                <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300">
+                  {model.algorithm} • Trained on {model.datasetVersion} • {model.timestamp}
+                </p>
+              </div>
+              <div className="flex gap-2 md:gap-4">
+                <div className="text-center">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">AUC</p>
+                  <p className="font-bold text-orange-500 text-sm md:text-base">{model.metrics.auc.toFixed(3)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Accuracy</p>
+                  <p className="font-bold text-orange-500 text-sm md:text-base">{model.metrics.accuracy.toFixed(3)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">F1</p>
+                  <p className="font-bold text-orange-500 text-sm md:text-base">{model.metrics.f1.toFixed(3)}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {models.filter(m => m.isProduction).length === 0 && (
+          <div className="mt-3 p-3 md:p-4 bg-gray-50 rounded-lg dark:bg-gray-900 text-center">
+            <p className="text-gray-500 dark:text-gray-400">No production model selected</p>
+          </div>
+        )}
       </div>
-      <div className="relative inline-block">
-        <button className="dropdown-toggle" onClick={toggleDropdown}>
-          <MoreDotIcon className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 size-6" />
-        </button>
-        <Dropdown isOpen={isOpen} onClose={closeDropdown} className="w-40 p-2">
-          <DropdownItem
-            onItemClick={closeDropdown}
-            className="flex w-full font-normal text-left text-gray-500 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
-          >
-            View More
-          </DropdownItem>
-          <DropdownItem
-            onItemClick={closeDropdown}
-            className="flex w-full font-normal text-left text-gray-500 rounded-lg hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-300"
-          >
-            Delete
-          </DropdownItem>
-        </Dropdown>
+
+      {/* Dataset or Model List */}
+      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden dark:border-gray-800 dark:bg-white/[0.03]">
+        {activeTab === 'datasets' ? (
+          <div className="divide-y divide-gray-200 dark:divide-gray-800">
+            <div className="grid grid-cols-12 p-3 md:p-4 bg-gray-50 dark:bg-gray-900 gap-2 md:gap-4">
+              <div className="font-medium text-gray-700 dark:text-gray-300 text-xs md:text-sm col-span-3">Version</div>
+              <div className="font-medium text-gray-700 dark:text-gray-300 text-xs md:text-sm col-span-2">Rows</div>
+              <div className="font-medium text-gray-700 dark:text-gray-300 text-xs md:text-sm col-span-2">Features</div>
+              <div className="font-medium text-gray-700 dark:text-gray-300 text-xs md:text-sm col-span-3">Size</div>
+              <div className="font-medium text-gray-700 dark:text-gray-300 text-xs md:text-sm col-span-2">Uploaded</div>
+            </div>
+            {datasets.map((dataset, index) => (
+              <div key={index} className="grid grid-cols-12 p-3 md:p-4 hover:bg-gray-50 dark:hover:bg-gray-900 gap-2 md:gap-4 items-center">
+                <div className="font-medium text-orange-500 text-xs md:text-sm col-span-3">{dataset.version}</div>
+                <div className="text-xs md:text-sm col-span-2">{dataset.rows.toLocaleString()}</div>
+                <div className="text-xs md:text-sm col-span-2">{dataset.features}</div>
+                <div className="text-xs md:text-sm col-span-3">{dataset.size}</div>
+                <div className="text-xs md:text-sm col-span-2">{dataset.uploaded}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200 dark:divide-gray-800">
+            <div className="grid grid-cols-12 p-3 md:p-4 bg-gray-50 dark:bg-gray-900 gap-2 md:gap-4">
+              <div className="font-medium text-gray-700 dark:text-gray-300 text-xs md:text-sm col-span-3">Model</div>
+              <div className="font-medium text-gray-700 dark:text-gray-300 text-xs md:text-sm col-span-2">Algorithm</div>
+              <div className="font-medium text-gray-700 dark:text-gray-300 text-xs md:text-sm col-span-2">Dataset</div>
+              <div className="font-medium text-gray-700 dark:text-gray-300 text-xs md:text-sm col-span-3">Metrics</div>
+              <div className="font-medium text-gray-700 dark:text-gray-300 text-xs md:text-sm col-span-2">Actions</div>
+            </div>
+            {models.map((model) => (
+              <div key={model.id} className="grid grid-cols-12 p-3 md:p-4 hover:bg-gray-50 dark:hover:bg-gray-900 gap-2 md:gap-4 items-center">
+                <div className="font-medium text-xs md:text-sm col-span-3">
+                  <div className="flex items-center gap-1">
+                    {model.status === 'training' && <FiRefreshCw className="animate-spin text-yellow-500" size={14} />}
+                    {model.status === 'deploying' && <FiRefreshCw className="animate-spin text-orange-500" size={14} />}
+                    {model.status === 'failed' && <FiAlertTriangle className="text-red-500" size={14} />}
+                    {model.status === 'success' && model.isProduction && <FiCheckCircle className="text-green-500" size={14} />}
+                    <span>{model.name}</span>
+                  </div>
+                </div>
+                <div className="text-xs md:text-sm col-span-2">{model.algorithm}</div>
+                <div className="text-xs md:text-sm col-span-2">{model.datasetVersion}</div>
+                <div className="flex flex-wrap gap-1 col-span-3">
+                  <span className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded whitespace-nowrap">
+                    AUC: {model.metrics.auc.toFixed(3)}
+                  </span>
+                  <span className="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded whitespace-nowrap">
+                    F1: {model.metrics.f1.toFixed(3)}
+                  </span>
+                  {model.status === 'training' && (
+                    <div className="w-full mt-1">
+                      <ProgressBar 
+                        value={model.trainingProgress || 0} 
+                        color="orange" 
+                        className="h-1.5" 
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="col-span-2 flex gap-1">
+                  {!model.isProduction && model.status === 'success' && (
+                    <button 
+                      onClick={() => promoteToProduction(model.id)}
+                      className="text-xs bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded whitespace-nowrap"
+                    >
+                      Promote
+                    </button>
+                  )}
+                  {model.status === 'success' && (
+                    <button 
+                      onClick={() => alert(`Downloading model ${model.name}`)}
+                      className="text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 px-2 py-1 rounded whitespace-nowrap"
+                    >
+                      <FiDownload size={14} />
+                    </button>
+                  )}
+                  {!model.isProduction && (
+                    <button 
+                      onClick={() => deleteModel(model.id)}
+                      className="text-xs bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 px-2 py-1 rounded whitespace-nowrap text-red-500"
+                    >
+                      <FiTrash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-    </div>
 
-    {/* Диаграмма */}
-    <div className="relative mt-5">
-      <div className="max-h-[330px]" id="chartDarkStyle">
-        <Chart options={options} series={series} type="radialBar" height={330} />
-      </div>
-      <span className="absolute left-1/2 top-full -translate-x-1/2 -translate-y-[95%] rounded-full bg-success-50 px-3 py-1 text-xs font-medium text-success-600 dark:bg-success-500/15 dark:text-success-500">
-        +{metrics.chartProgressPercent}%
-      </span>
-    </div>
-
-    {/* Текст под графиком */}
-    <p className="mx-auto mt-10 w-full max-w-[380px] text-center text-sm text-gray-500 sm:text-base">
-      You earn ${ (metrics.profit * 0.335).toLocaleString() } today, it's higher than last month. Keep up your good work!
-    </p>
-  </div>
-
-  {/* Нижняя панель с цифрами */}
-  <div className="flex items-center justify-center gap-5 px-6 py-3.5 sm:gap-8 sm:py-5">
-    <div>
-      <p className="mb-1 text-center text-gray-500 text-theme-xs dark:text-gray-400 sm:text-sm">
-        Target
-      </p>
-      <p className="flex items-center justify-center gap-1 text-base font-semibold text-gray-800 dark:text-white/90 sm:text-lg">
-        ${metrics.bottomPanel.target.toLocaleString()}
-        {/* Target стрелка */}
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path
-            fillRule="evenodd"
-            clipRule="evenodd"
-            d="M7.26816 13.6632C7.4056 13.8192 7.60686 13.9176 7.8311 13.9176C7.83148 13.9176 7.83187 13.9176 7.83226 13.9176C8.02445 13.9178 8.21671 13.8447 8.36339 13.6981L12.3635 9.70076C12.6565 9.40797 12.6567 8.9331 12.3639 8.6401C12.0711 8.34711 11.5962 8.34694 11.3032 8.63973L8.5811 11.36V2.5C8.5811 2.08579 8.24531 1.75 7.8311 1.75C7.41688 1.75 7.0811 2.08579 7.0811 2.5V11.3556L4.36354 8.63975C4.07055 8.34695 3.59568 8.3471 3.30288 8.64009C3.01008 8.93307 3.01023 9.40794 3.30321 9.70075L7.26816 13.6632Z"
-            fill="#D92D20"
-          />
-        </svg>
-      </p>
-    </div>
-
-    <div className="w-px bg-gray-200 h-7 dark:bg-gray-800"></div>
-
-    <div>
-      <p className="mb-1 text-center text-gray-500 text-theme-xs dark:text-gray-400 sm:text-sm">
-        Revenue
-      </p>
-      <p className="flex items-center justify-center gap-1 text-base font-semibold text-gray-800 dark:text-white/90 sm:text-lg">
-        ${metrics.bottomPanel.revenue.toLocaleString()}
-        {/* Revenue стрелка */}
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path
-            fillRule="evenodd"
-            clipRule="evenodd"
-            d="M7.60141 2.33683C7.73885 2.18084 7.9401 2.08243 8.16435 2.08243C8.16475 2.08243 8.16516 2.08243 8.16556 2.08243C8.35773 2.08219 8.54998 2.15535 8.69664 2.30191L12.6968 6.29924C12.9898 6.59203 12.9899 7.0669 12.6971 7.3599C12.4044 7.6529 11.9295 7.65306 11.6365 7.36027L8.91435 4.64004V13.5C8.91435 13.9142 8.57856 14.25 8.16435 14.25C7.75013 14.25 7.41435 13.9142 7.41435 13.5V4.64442L4.69679 7.36025C4.4038 7.65305 3.92893 7.6529 3.63613 7.35992C3.34333 7.06693 3.34348 6.59206 3.63646 6.29926L7.60141 2.33683Z"
-            fill="#039855"
-          />
-        </svg>
-      </p>
-    </div>
-
-    <div className="w-px bg-gray-200 h-7 dark:bg-gray-800"></div>
-
-    <div>
-      <p className="mb-1 text-center text-gray-500 text-theme-xs dark:text-gray-400 sm:text-sm">
-        Today
-      </p>
-      <p className="flex items-center justify-center gap-1 text-base font-semibold text-gray-800 dark:text-white/90 sm:text-lg">
-        ${metrics.bottomPanel.today.toLocaleString()}
-        {/* Today стрелка */}
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path
-            fillRule="evenodd"
-            clipRule="evenodd"
-            d="M7.60141 2.33683C7.73885 2.18084 7.9401 2.08243 8.16435 2.08243C8.16475 2.08243 8.16516 2.08243 8.16556 2.08243C8.35773 2.08219 8.54998 2.15535 8.69664 2.30191L12.6968 6.29924C12.9898 6.59203 12.9899 7.0669 12.6971 7.3599C12.4044 7.6529 11.9295 7.65306 11.6365 7.36027L8.91435 4.64004V13.5C8.91435 13.9142 8.57856 14.25 8.16435 14.25C7.75013 14.25 7.41435 13.9142 7.41435 13.5V4.64442L4.69679 7.36025C4.4038 7.65305 3.92893 7.6529 3.63613 7.35992C3.34333 7.06693 3.34348 6.59206 3.63646 6.29926L7.60141 2.33683Z"
-            fill="#039855"
-          />
-        </svg>
-      </p>
-    </div>
-  </div>
-</div>
-
+      {/* Training Progress Indicator */}
+      {isTraining && (
+        <div className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 flex items-center gap-3">
+          <FiRefreshCw className="animate-spin text-orange-500" size={20} />
+          <div className="min-w-[200px]">
+            <p className="text-sm font-medium text-gray-800 dark:text-white/90">Training Model</p>
+            <ProgressBar value={trainingProgress} color="orange" className="mt-1 h-2" />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{trainingProgress.toFixed(0)}% complete</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

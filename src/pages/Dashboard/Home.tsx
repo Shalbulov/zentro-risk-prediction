@@ -7,12 +7,13 @@ import DemographicCard from "../../components/ecommerce/DemographicCard";
 import PageMeta from "../../components/common/PageMeta";
 import EcommerceCard from "../../components/ecommerce/EcommerceCard";
 import NewStatisticsChart from "../../components/ecommerce/NewStatisticsChart";
+import ExplanationPDF from "../../components/ecommerce/ExplanationPDF";
 export default function Home() {
   return (
     <>
       <PageMeta
-        title="Korzinka BI"
-        description="This is React.js Korzinka BI Dashboard page"
+        title="ZENTRO ML"
+        description="This is React.js ZENTRO ML Dashboard page"
       />
       <div className="grid grid-cols-12 gap-4 md:gap-6">
         <div className="col-span-12 space-y-6 xl:col-span-7">
@@ -24,19 +25,18 @@ export default function Home() {
           <EcommerceCard />
         </div>
 
-        <div className="col-span-12">
-          <StatisticsChart />
-        </div>
+
 
         <div className="col-span-12">
           <NewStatisticsChart />
         </div>
-        <div className="col-span-12 xl:col-span-5">
-          <DemographicCard />
-        </div>
 
-        <div className="col-span-12 xl:col-span-7">
+
+        <div className="col-span-12">
           <RecentOrders />
+        </div>
+                <div className="col-span-12">
+          <DemographicCard />
         </div>
       </div>
     </>

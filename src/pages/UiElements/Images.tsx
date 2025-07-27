@@ -9,8 +9,8 @@ export default function Images() {
   return (
     <>
       <PageMeta
-        title="Korzinka BI"
-        description="This is Korzinka BI page"
+        title="ZENTRO ML"
+        description="This is ZENTRO ML page"
       />
       <PageBreadcrumb pageTitle="Images" />
       <div className="space-y-5 sm:space-y-6">

@@ -19,6 +19,7 @@ export default function NotificationDropdown() {
     toggleDropdown();
     setNotifying(false);
   };
+
   return (
     <div className="relative">
       <button
@@ -26,11 +27,11 @@ export default function NotificationDropdown() {
         onClick={handleClick}
       >
         <span
-          className={`absolute right-0 top-0.5 z-10 h-2 w-2 rounded-full bg-orange-400 ${
+          className={`absolute right-0 top-0.5 z-10 h-2 w-2 rounded-full bg-[#ff671b] ${
             !notifying ? "hidden" : "flex"
           }`}
         >
-          <span className="absolute inline-flex w-full h-full bg-orange-400 rounded-full opacity-75 animate-ping"></span>
+          <span className="absolute inline-flex w-full h-full bg-[#ff671b] rounded-full opacity-75 animate-ping"></span>
         </span>
         <svg
           className="fill-current"
@@ -42,7 +43,7 @@ export default function NotificationDropdown() {
           <path
             fillRule="evenodd"
             clipRule="evenodd"
-            d="M10.75 2.29248C10.75 1.87827 10.4143 1.54248 10 1.54248C9.58583 1.54248 9.25004 1.87827 9.25004 2.29248V2.83613C6.08266 3.20733 3.62504 5.9004 3.62504 9.16748V14.4591H3.33337C2.91916 14.4591 2.58337 14.7949 2.58337 15.2091C2.58337 15.6234 2.91916 15.9591 3.33337 15.9591H4.37504H15.625H16.6667C17.0809 15.9591 17.4167 15.6234 17.4167 15.2091C17.4167 14.7949 17.0809 14.4591 16.6667 14.4591H16.375V9.16748C16.375 5.9004 13.9174 3.20733 10.75 2.83613V2.29248ZM14.875 14.4591V9.16748C14.875 6.47509 12.6924 4.29248 10 4.29248C7.30765 4.29248 5.12504 6.47509 5.12504 9.16748V14.4591H14.875ZM8.00004 17.7085C8.00004 18.1228 8.33583 18.4585 8.75004 18.4585H11.25C11.6643 18.4585 12 18.1228 12 17.7085C12 17.2943 11.6643 16.9585 11.25 16.9585H8.75004C8.33583 16.9585 8.00004 17.2943 8.00004 17.7085Z"
+            d="M10.75 2.29248C10.75 1.87827 10.4143 1.54248 10 1.54248C9.58583 1.54248 9.25004 1.87827 9.25004 2.29248V2.83613C6.08266 3.20733 3.62504 5.9004 3.62504 9.16748V14.4591H3.33337C2.91916 14.4591 2.58337 14.7949 2.58337 15.2091C2.58337 15.6234 2.91916 15.9591 3.33337 15.9591H4.37504H15.625H16.6667C17.0809 15.9591 17.4167 15.6234 17.4167 15.2091C17.4167 14.7949 17.0809 14.4591 16.6667 14.4591H16.375V9.16748C16.375 5.9004 13.9174 3.20733 10.75 2.83613V2.29248ZM14.875 14.4591V9.16748C14.875 6.47509 12.6924 4.29248 10 4.29248C7.30765 4.29248 5.12504 6.47509 5.12504 9.16748V14.4591H14.875ZM8.00004 17.7085C8.00004 18.1228 8.33583 18.4585 8.75004 18.4585H11.25C11.6643 18.4585 12 18.1228 12 17.7085C12 17.2943 11.6643 16.9585 12 16.9585H8.75004C8.33583 16.9585 8.00004 17.2943 8.00004 17.7085Z"
             fill="currentColor"
           />
         </svg>
@@ -54,7 +55,7 @@ export default function NotificationDropdown() {
       >
         <div className="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 dark:border-gray-700">
           <h5 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-            Notifications
+            Zentro Notifications
           </h5>
           <button
             onClick={toggleDropdown}
@@ -90,21 +91,21 @@ export default function NotificationDropdown() {
                   alt="User"
                   className="w-full overflow-hidden rounded-full"
                 />
-                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-success-500 dark:border-gray-900"></span>
+                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-[#8db92e] dark:border-gray-900"></span>
               </span>
 
               <span className="block">
                 <span className="mb-1.5 block text-theme-sm text-gray-500 dark:text-gray-400 space-x-1">
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    Sales Dashboard
+                    New Project Created
                   </span>
-                  <span>daily sales report is ready for</span>
+                  <span>"E-commerce Dashboard" has been created by</span>
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    All Stores
+                    Sarah Johnson
                   </span>
                 </span>
                 <span className="flex items-center gap-2 text-gray-500 text-theme-xs dark:text-gray-400">
-                  <span>Reports</span>
+                  <span>Projects</span>
                   <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
                   <span>5 min ago</span>
                 </span>
@@ -125,23 +126,23 @@ export default function NotificationDropdown() {
                   alt="User"
                   className="w-full overflow-hidden rounded-full"
                 />
-                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-success-500 dark:border-gray-900"></span>
+                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-[#8db92e] dark:border-gray-900"></span>
               </span>
 
               <span className="block">
                 <span className="mb-1.5 block space-x-1 text-theme-sm text-gray-500 dark:text-gray-400">
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    Inventory Monitor
+                    Design System Updated
                   </span>
-                  <span>detected low stock for</span>
+                  <span>New components added to</span>
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    Beverages
+                    Zentro UI Kit
                   </span>
                 </span>
                 <span className="flex items-center gap-2 text-gray-500 text-theme-xs dark:text-gray-400">
-                  <span>Alerts</span>
+                  <span>Design</span>
                   <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
-                  <span>8 min ago</span>
+                  <span>15 min ago</span>
                 </span>
               </span>
             </DropdownItem>
@@ -160,23 +161,23 @@ export default function NotificationDropdown() {
                   alt="User"
                   className="w-full overflow-hidden rounded-full"
                 />
-                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-success-500 dark:border-gray-900"></span>
+                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-[#ff671b] dark:border-gray-900"></span>
               </span>
 
               <span className="block">
                 <span className="mb-1.5 block space-x-1 text-theme-sm text-gray-500 dark:text-gray-400">
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    Profit Analysis
+                    Urgent: Server Maintenance
                   </span>
-                  <span>completed monthly margin report for</span>
+                  <span>Scheduled for tonight at</span>
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    Region North
+                    2:00 AM UTC
                   </span>
                 </span>
                 <span className="flex items-center gap-2 text-gray-500 text-theme-xs dark:text-gray-400">
-                  <span>Finance</span>
+                  <span>System</span>
                   <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
-                  <span>15 min ago</span>
+                  <span>30 min ago</span>
                 </span>
               </span>
             </DropdownItem>
@@ -196,21 +197,21 @@ export default function NotificationDropdown() {
                   alt="User"
                   className="w-full overflow-hidden rounded-full"
                 />
-                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-error-500 dark:border-gray-900"></span>
+                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-[#ff671b] dark:border-gray-900"></span>
               </span>
 
               <span className="block">
                 <span className="mb-1.5 space-x-1 block text-theme-sm text-gray-500 dark:text-gray-400">
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    KPI Alert
+                    API Rate Limit Warning
                   </span>
-                  <span>detected target underachievement for</span>
+                  <span>Approaching limit for</span>
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    Region West
+                    Payment Gateway API
                   </span>
                 </span>
                 <span className="flex items-center gap-2 text-gray-500 text-theme-xs dark:text-gray-400">
-                  <span>Alerts</span>
+                  <span>Development</span>
                   <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
                   <span>1 hr ago</span>
                 </span>
@@ -231,23 +232,23 @@ export default function NotificationDropdown() {
                   alt="User"
                   className="w-full overflow-hidden rounded-full"
                 />
-                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-success-500 dark:border-gray-900"></span>
+                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-[#8db92e] dark:border-gray-900"></span>
               </span>
 
               <span className="block">
                 <span className="mb-1.5 block space-x-1 text-theme-sm text-gray-500 dark:text-gray-400">
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    Data Refresh
+                    New Team Member
                   </span>
-                  <span>completed successfully for</span>
+                  <span>has joined the</span>
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    SalesData
+                    Frontend Team
                   </span>
                 </span>
                 <span className="flex items-center gap-2 text-gray-500 text-theme-xs dark:text-gray-400">
-                  <span>System</span>
+                  <span>HR</span>
                   <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
-                  <span>5 min ago</span>
+                  <span>2 hrs ago</span>
                 </span>
               </span>
             </DropdownItem>
@@ -266,23 +267,23 @@ export default function NotificationDropdown() {
                   alt="User"
                   className="w-full overflow-hidden rounded-full"
                 />
-                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-success-500 dark:border-gray-900"></span>
+                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-[#8db92e] dark:border-gray-900"></span>
               </span>
 
               <span className="block">
                 <span className="mb-1.5 block space-x-1 text-theme-sm text-gray-500 dark:text-gray-400">
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    Export Service
+                    Sprint Review Completed
                   </span>
-                  <span>finished Excel export for</span>
+                  <span>for</span>
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    Q2 Financials
+                    Q3 Roadmap
                   </span>
                 </span>
                 <span className="flex items-center gap-2 text-gray-500 text-theme-xs dark:text-gray-400">
-                  <span>Exports</span>
+                  <span>Projects</span>
                   <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
-                  <span>8 min ago</span>
+                  <span>3 hrs ago</span>
                 </span>
               </span>
             </DropdownItem>
@@ -301,23 +302,23 @@ export default function NotificationDropdown() {
                   alt="User"
                   className="w-full overflow-hidden rounded-full"
                 />
-                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-success-500 dark:border-gray-900"></span>
+                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-[#ff671b] dark:border-gray-900"></span>
               </span>
 
               <span className="block">
                 <span className="mb-1.5 block space-x-1 text-theme-sm text-gray-500 dark:text-gray-400">
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    Alert Service
+                    Security Alert
                   </span>
-                  <span>threshold exceeded for</span>
+                  <span>New login detected from</span>
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    Store #30
+                    New York, US
                   </span>
                 </span>
                 <span className="flex items-center gap-2 text-gray-500 text-theme-xs dark:text-gray-400">
-                  <span>Alerts</span>
+                  <span>Security</span>
                   <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
-                  <span>15 min ago</span>
+                  <span>5 hrs ago</span>
                 </span>
               </span>
             </DropdownItem>
@@ -336,31 +337,31 @@ export default function NotificationDropdown() {
                   alt="User"
                   className="overflow-hidden rounded-full"
                 />
-                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-error-500 dark:border-gray-900"></span>
+                <span className="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white bg-[#ff671b] dark:border-gray-900"></span>
               </span>
 
               <span className="block">
                 <span className="mb-1.5 block space-x-1 text-theme-sm text-gray-500 dark:text-gray-400">
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    Data Refresh
+                    Database Backup Failed
                   </span>
-                  <span>failed due to connection timeout on</span>
+                  <span>for</span>
                   <span className="font-medium text-gray-800 dark:text-white/90">
-                    ERP DB
+                    Customer Data
                   </span>
                 </span>
                 <span className="flex items-center gap-2 text-gray-500 text-theme-xs dark:text-gray-400">
                   <span>System</span>
                   <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
-                  <span>1 hr ago</span>
+                  <span>1 day ago</span>
                 </span>
               </span>
             </DropdownItem>
           </li>
         </ul>
         <Link
-          to="/"
-          className="block px-4 py-2 mt-3 text-sm font-medium text-center text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+          to="/notifications"
+          className="block px-4 py-2 mt-3 text-sm font-medium text-center text-white bg-[#ff671b] border border-[#ff671b] rounded-lg hover:bg-[#e05c17] dark:border-[#ff671b] dark:bg-[#ff671b] dark:hover:bg-[#e05c17]"
         >
           View All Notifications
         </Link>
